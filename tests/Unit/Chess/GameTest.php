@@ -11,7 +11,6 @@ use Ephpicman\ChessEngine\Chess\DecisionType;
 use Ephpicman\ChessEngine\Chess\Game;
 use Ephpicman\ChessEngine\Chess\InitialPosition;
 use Ephpicman\ChessEngine\Chess\Move;
-use Ephpicman\ChessEngine\Chess\Piece;
 use Ephpicman\ChessEngine\Chess\Player;
 use Ephpicman\ChessEngine\Chess\Position;
 use Ephpicman\ChessEngine\Chess\PositionChange;
@@ -154,12 +153,11 @@ final class GameTest extends TestCase
 
         $history = $game->play();
 
-        self::assertSame(4, $history->count());
+        self::assertSame(3, $history->count());
         self::assertSame(2, $history->moveCount());
         self::assertSame(DecisionType::OFFER_DRAW, $history->all()[0]['decision']->type);
         self::assertSame(DecisionType::MOVE, $history->all()[1]['decision']->type);
-        self::assertSame(DecisionType::ACCEPT_DRAW, $history->all()[2]['decision']->type);
-        self::assertSame(DecisionType::RESIGN, $history->all()[3]['decision']->type);
+        self::assertSame(DecisionType::RESIGN, $history->all()[2]['decision']->type);
         self::assertContains('No draw offer is currently active.', $messages);
     }
 }
