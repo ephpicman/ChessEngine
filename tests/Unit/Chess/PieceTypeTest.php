@@ -5,13 +5,12 @@ declare(strict_types=1);
 namespace Ephpicman\ChessEngine\Tests\Unit\Chess;
 
 use Ephpicman\ChessEngine\Chess\PieceType;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 final class PieceTypeTest extends TestCase
 {
-    /**
-     * @dataProvider pieceTypesProvider
-     */
+    #[DataProvider('pieceTypesProvider')]
     public function testPieceTypeHasExpectedBackingValue(
         PieceType $pieceType,
         string $expectedValue,
@@ -19,9 +18,7 @@ final class PieceTypeTest extends TestCase
         self::assertSame($expectedValue, $pieceType->value);
     }
 
-    /**
-     * @dataProvider pieceTypesProvider
-     */
+    #[DataProvider('pieceTypesProvider')]
     public function testPieceTypeCanBeCreatedFromItsBackingValue(
         PieceType $expectedPieceType,
         string $value,
