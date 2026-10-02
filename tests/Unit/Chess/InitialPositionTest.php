@@ -15,10 +15,16 @@ final class InitialPositionTest extends TestCase
     {
         $position = InitialPosition::create();
 
-        self::assertSame(64, $position->getPieces()->count());
+        // The position contains the 32 pieces on the board plus
+        // 64 promotion reserve pieces (32 for each color).
+        self::assertSame(96, $position->getPieces()->count());
         self::assertSame(32, count(array_filter(
             $position->getPieces()->all(),
             fn ($piece) => $position->hasPiece($piece),
+        )));
+        self::assertSame(64, count(array_filter(
+            $position->getPieces()->all(),
+            fn ($piece) => !$position->hasPiece($piece),
         )));
 
         $board = $position->getBoard();
