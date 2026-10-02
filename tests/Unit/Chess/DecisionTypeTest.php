@@ -5,13 +5,12 @@ declare(strict_types=1);
 namespace Ephpicman\ChessEngine\Tests\Unit\Chess;
 
 use Ephpicman\ChessEngine\Chess\DecisionType;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 final class DecisionTypeTest extends TestCase
 {
-    /**
-     * @dataProvider decisionTypesProvider
-     */
+    #[DataProvider('decisionTypesProvider')]
     public function testDecisionTypeHasExpectedBackingValue(
         DecisionType $decisionType,
         string $expectedValue,
@@ -19,9 +18,7 @@ final class DecisionTypeTest extends TestCase
         self::assertSame($expectedValue, $decisionType->value);
     }
 
-    /**
-     * @dataProvider decisionTypesProvider
-     */
+    #[DataProvider('decisionTypesProvider')]
     public function testDecisionTypeCanBeCreatedFromItsBackingValue(
         DecisionType $expectedDecisionType,
         string $value,
