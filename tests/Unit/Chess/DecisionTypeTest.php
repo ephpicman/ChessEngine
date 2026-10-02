@@ -9,24 +9,24 @@ use PHPUnit\Framework\TestCase;
 
 final class DecisionTypeTest extends TestCase
 {
-    public function testMoveValue(): void
-    {
-        self::assertSame('move', DecisionType::MOVE->value);
+    /**
+     * @dataProvider decisionTypesProvider
+     */
+    public function testDecisionTypeHasExpectedBackingValue(
+        DecisionType $decisionType,
+        string $expectedValue,
+    ): void {
+        self::assertSame($expectedValue, $decisionType->value);
     }
 
-    public function testOfferDrawValue(): void
-    {
-        self::assertSame('offer_draw', DecisionType::OFFER_DRAW->value);
-    }
-
-    public function testAcceptDrawValue(): void
-    {
-        self::assertSame('accept_draw', DecisionType::ACCEPT_DRAW->value);
-    }
-
-    public function testResignValue(): void
-    {
-        self::assertSame('resign', DecisionType::RESIGN->value);
+    /**
+     * @dataProvider decisionTypesProvider
+     */
+    public function testDecisionTypeCanBeCreatedFromItsBackingValue(
+        DecisionType $expectedDecisionType,
+        string $value,
+    ): void {
+        self::assertSame($expectedDecisionType, DecisionType::from($value));
     }
 
     public function testAllDecisionTypesAreDefined(): void
@@ -38,7 +38,29 @@ final class DecisionTypeTest extends TestCase
                 DecisionType::ACCEPT_DRAW,
                 DecisionType::RESIGN,
             ],
-            DecisionType::cases()
+            DecisionType::cases(),
         );
+    }
+
+    public function testInvalidBackingValueThrowsValueError(): void
+    {
+        $this->expectException(\ValueError::class);
+
+        DecisionType::from('invalid');
+    }
+
+    public function testTryFromReturnsNullForInvalidBackingValue(): void
+    {
+        self::assertNull(DecisionType::tryFrom('invalid'));
+    }
+
+    public static function decisionTypesProvider(): array
+    {
+        return [
+            'move' => [DecisionType::MOVE, 'move'],
+            'offer draw' => [DecisionType::OFFER_DRAW, 'offer_draw'],
+            'accept draw' => [DecisionType::ACCEPT_DRAW, 'accept_draw'],
+            'resign' => [DecisionType::RESIGN, 'resign'],
+        ];
     }
 }
