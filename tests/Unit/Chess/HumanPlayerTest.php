@@ -68,6 +68,19 @@ final class HumanPlayerTest extends TestCase
         self::assertNull($decision->move);
     }
 
+    public function testParsesAcceptDraw(): void
+    {
+        $player = new HumanPlayer(
+            input: static fn (): string => 'accept draw',
+            output: static function (): void {},
+        );
+
+        $decision = $player->decide(new DecisionHistory(), InitialPosition::create());
+
+        self::assertSame(DecisionType::ACCEPT_DRAW, $decision->type);
+        self::assertNull($decision->move);
+    }
+
     public function testParsesMoveWithDrawOffer(): void
     {
         $player = new HumanPlayer(
@@ -80,5 +93,70 @@ final class HumanPlayerTest extends TestCase
         self::assertSame(Color::WHITE, (new DecisionHistory())->turn());
         self::assertSame(DecisionType::OFFER_DRAW, $decision->type);
         self::assertNotNull($decision->move);
+    }
+
+    public function testParsesPromotionMove(): void
+    {
+        $position = InitialPosition::create();
+        $player = new HumanPlayer(
+            input: static fn (): string => 'e2e8q',
+            output: static function (): void {},
+        );
+
+        $decision = $player->decide(new DecisionHistory(), $position);
+
+        self::assertSame(DecisionType::MOVE, $decision->type);
+        self::assertNotNull($decision->move);
+        self::assertCount(2, $decision->move->changes);
+        self::assertSame('e2', $decision->move->changes[0]->from->notation());
+        self::assertSame('e8', $decision->move->changes[0]->to->notation());
+    }
+
+    public function testRejectsMovingAnOpponentPiece(): void
+    {
+        $inputs = ['e7e5', 'e2e4'];
+        $messages = [];
+        $player = new HumanPlayer(
+            input: static function () use (&$inputs): string {
+                return array_shift($inputs);
+            },
+            output: static function (string $message) use (&$messages): void {
+                $messages[] = $message;
+            },
+        );
+
+        $decision = $player->decide(new DecisionHistory(), InitialPosition::create());
+
+        self::assertSame(DecisionType::MOVE, $decision->type);
+        self::assertTrue(
+            count(array_filter(
+                $messages,
+                static fn (string $message): bool => str_contains($message, 'does not belong to White'),
+            )) > 0
+        );
+    }
+
+    public function testRejectsPromotionOnNonPawn(): void
+    {
+        $inputs = ['g1f3q', 'g1f3'];
+        $messages = [];
+        $player = new HumanPlayer(
+            input: static function () use (&$inputs): string {
+                return array_shift($inputs);
+            },
+            output: static function (string $message) use (&$messages): void {
+                $messages[] = $message;
+            },
+        );
+
+        $decision = $player->decide(new DecisionHistory(), InitialPosition::create());
+
+        self::assertSame(DecisionType::MOVE, $decision->type);
+        self::assertTrue(
+            count(array_filter(
+                $messages,
+                static fn (string $message): bool => $message === 'Invalid input: Only a pawn can be promoted.',
+            )) > 0
+        );
     }
 }
