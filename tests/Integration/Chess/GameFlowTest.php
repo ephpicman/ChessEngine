@@ -77,7 +77,7 @@ final class GameFlowTest extends TestCase
         // Black: three invalid attempts, then 3... Nf6.
         $this->assertInvalid($this->move($this->moveChange($this->piece('white-pawn-a2'), 'a2', 'a3')));
         $this->assertInvalid($this->move($this->moveChange($this->piece('black-pawn-h7'), 'h7', 'h4')));
-        $this->assertInvalid($this->move($this->moveChange($this->piece('black-knight-f6'), 'f6', 'f4')));
+        $this->assertInvalid($this->move($this->moveChange($this->piece('black-knight-g8'), 'g8', 'g6')));
         $this->playValid($this->move($this->moveChange($this->piece('black-knight-g8'), 'g8', 'f6')));
 
         // White: three invalid attempts, then 4. d3.
