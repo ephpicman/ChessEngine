@@ -9,33 +9,62 @@ use PHPUnit\Framework\TestCase;
 
 final class PieceTypeTest extends TestCase
 {
-    public function testKingHasExpectedBackingValue(): void
-    {
-        self::assertSame('k', PieceType::KING->value);
+    /**
+     * @dataProvider pieceTypesProvider
+     */
+    public function testPieceTypeHasExpectedBackingValue(
+        PieceType $pieceType,
+        string $expectedValue,
+    ): void {
+        self::assertSame($expectedValue, $pieceType->value);
     }
 
-    public function testQueenHasExpectedBackingValue(): void
-    {
-        self::assertSame('q', PieceType::QUEEN->value);
+    /**
+     * @dataProvider pieceTypesProvider
+     */
+    public function testPieceTypeCanBeCreatedFromItsBackingValue(
+        PieceType $expectedPieceType,
+        string $value,
+    ): void {
+        self::assertSame($expectedPieceType, PieceType::from($value));
     }
 
-    public function testRookHasExpectedBackingValue(): void
+    public function testAllPieceTypesAreRepresented(): void
     {
-        self::assertSame('r', PieceType::ROOK->value);
+        self::assertSame(
+            [
+                PieceType::KING,
+                PieceType::QUEEN,
+                PieceType::ROOK,
+                PieceType::BISHOP,
+                PieceType::KNIGHT,
+                PieceType::PAWN,
+            ],
+            PieceType::cases(),
+        );
     }
 
-    public function testBishopHasExpectedBackingValue(): void
+    public function testInvalidBackingValueThrowsValueError(): void
     {
-        self::assertSame('b', PieceType::BISHOP->value);
+        $this->expectException(\ValueError::class);
+
+        PieceType::from('x');
     }
 
-    public function testKnightHasExpectedBackingValue(): void
+    public function testTryFromReturnsNullForInvalidBackingValue(): void
     {
-        self::assertSame('n', PieceType::KNIGHT->value);
+        self::assertNull(PieceType::tryFrom('x'));
     }
 
-    public function testPawnHasExpectedBackingValue(): void
+    public static function pieceTypesProvider(): array
     {
-        self::assertSame('p', PieceType::PAWN->value);
+        return [
+            'king' => [PieceType::KING, 'k'],
+            'queen' => [PieceType::QUEEN, 'q'],
+            'rook' => [PieceType::ROOK, 'r'],
+            'bishop' => [PieceType::BISHOP, 'b'],
+            'knight' => [PieceType::KNIGHT, 'n'],
+            'pawn' => [PieceType::PAWN, 'p'],
+        ];
     }
 }
