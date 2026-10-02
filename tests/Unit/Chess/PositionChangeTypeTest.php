@@ -5,13 +5,12 @@ declare(strict_types=1);
 namespace Ephpicman\ChessEngine\Tests\Unit\Chess;
 
 use Ephpicman\ChessEngine\Chess\PositionChangeType;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 final class PositionChangeTypeTest extends TestCase
 {
-    /**
-     * @dataProvider positionChangeTypesProvider
-     */
+    #[DataProvider('positionChangeTypesProvider')]
     public function testPositionChangeTypeHasExpectedBackingValue(
         PositionChangeType $changeType,
         string $expectedValue,
@@ -19,9 +18,7 @@ final class PositionChangeTypeTest extends TestCase
         self::assertSame($expectedValue, $changeType->value);
     }
 
-    /**
-     * @dataProvider positionChangeTypesProvider
-     */
+    #[DataProvider('positionChangeTypesProvider')]
     public function testPositionChangeTypeCanBeCreatedFromItsBackingValue(
         PositionChangeType $expectedChangeType,
         string $value,
