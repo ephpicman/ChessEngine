@@ -40,11 +40,7 @@ final class HumanPlayer implements Player
             ($this->output)(sprintf('%s to move > ', $this->colorName($color)));
 
             try {
-                return $this->parse(
-                    ($this->input)(),
-                    $color,
-                    $position,
-                );
+                return $this->parse(($this->input)(), $color, $position);
             } catch (InvalidArgumentException $exception) {
                 ($this->output)('Invalid input: ' . $exception->getMessage());
             }
@@ -58,21 +54,31 @@ final class HumanPlayer implements Player
     ): Decision {
         $input = strtolower(trim($input));
 
-        return match ($input) {
-            'resign' => new Decision(DecisionType::RESIGN),
-            'draw', 'offer draw' => $this->drawOffer($position, $input),
-            'accept', 'accept draw' => new Decision(DecisionType::ACCEPT_DRAW),
-            default => new Decision(
-                DecisionType::MOVE,
-                $this->parseMove($input, $color, $position),
-            ),
-        };
-    }
+        if ($input === 'resign') {
+            return new Decision(DecisionType::RESIGN);
+        }
 
-    private function drawOffer(Position $position, string $input): Decision
-    {
-        throw new InvalidArgumentException(
-            "'{$input}' is not a valid standalone decision. Enter a move followed by 'draw' is not supported yet."
+        if ($input === 'accept' || $input === 'accept draw') {
+            return new Decision(DecisionType::ACCEPT_DRAW);
+        }
+
+        $offerDraw = false;
+        if (str_ends_with($input, ' draw')) {
+            $offerDraw = true;
+            $input = trim(substr($input, 0, -5));
+        }
+
+        if ($input === '') {
+            throw new InvalidArgumentException(
+                "Expected a move such as 'e2e4', or 'resign'."
+            );
+        }
+
+        $move = $this->parseMove($input, $color, $position);
+
+        return new Decision(
+            $offerDraw ? DecisionType::OFFER_DRAW : DecisionType::MOVE,
+            $move,
         );
     }
 
@@ -114,9 +120,7 @@ final class HumanPlayer implements Player
 
         if (isset($matches[3])) {
             if ($piece->type !== PieceType::PAWN) {
-                throw new InvalidArgumentException(
-                    'Only a pawn can be promoted.'
-                );
+                throw new InvalidArgumentException('Only a pawn can be promoted.');
             }
 
             if ($to->rank !== Rank::ONE && $to->rank !== Rank::EIGHT) {
