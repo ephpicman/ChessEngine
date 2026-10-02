@@ -21,6 +21,7 @@ final class HumanPlayer implements Player
     public function __construct(
         ?Closure $input = null,
         ?Closure $output = null,
+        private readonly ?ConsoleBoardRenderer $renderer = null,
     ) {
         $this->input = $input ?? static function (): string {
             return trim((string) fgets(STDIN));
@@ -37,6 +38,10 @@ final class HumanPlayer implements Player
         $color = $decisionHistory->turn();
 
         while (true) {
+            if ($this->renderer !== null) {
+                ($this->output)($this->renderer->render($position));
+            }
+
             ($this->output)(sprintf('%s to move > ', $this->colorName($color)));
 
             try {
