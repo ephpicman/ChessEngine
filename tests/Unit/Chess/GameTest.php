@@ -115,6 +115,53 @@ final class GameTest extends TestCase
         self::assertSame(DecisionType::ACCEPT_DRAW, $history->all()[1]['decision']->type);
         self::assertSame('e4', $position->getSquareOf($pawn)->notation());
     }
+
+    public function testDrawOfferExpiresAfterOpponentMakesAnotherMove(): void
+    {
+        $position = InitialPosition::create();
+        $board = $position->getBoard();
+        $whitePawn = $position->getPieceAt($board->getSquareByNotation('e2'));
+        $blackPawn = $position->getPieceAt($board->getSquareByNotation('e7'));
+
+        $whiteMove = new Move(new PositionChange(
+            PositionChangeType::MOVE,
+            $whitePawn,
+            $board->getSquareByNotation('e2'),
+            $board->getSquareByNotation('e4'),
+        ));
+        $blackMove = new Move(new PositionChange(
+            PositionChangeType::MOVE,
+            $blackPawn,
+            $board->getSquareByNotation('e7'),
+            $board->getSquareByNotation('e5'),
+        ));
+
+        $messages = [];
+        $game = new Game(
+            $position,
+            new ScriptedPlayer([
+                new Decision(DecisionType::OFFER_DRAW, $whiteMove),
+                new Decision(DecisionType::ACCEPT_DRAW),
+                new Decision(DecisionType::RESIGN),
+            ]),
+            new ScriptedPlayer([
+                new Decision(DecisionType::MOVE, $blackMove),
+            ]),
+            output: static function (string $message) use (&$messages): void {
+                $messages[] = $message;
+            },
+        );
+
+        $history = $game->play();
+
+        self::assertSame(4, $history->count());
+        self::assertSame(2, $history->moveCount());
+        self::assertSame(DecisionType::OFFER_DRAW, $history->all()[0]['decision']->type);
+        self::assertSame(DecisionType::MOVE, $history->all()[1]['decision']->type);
+        self::assertSame(DecisionType::ACCEPT_DRAW, $history->all()[2]['decision']->type);
+        self::assertSame(DecisionType::RESIGN, $history->all()[3]['decision']->type);
+        self::assertContains('No draw offer is currently active.', $messages);
+    }
 }
 
 final class ScriptedPlayer implements Player
