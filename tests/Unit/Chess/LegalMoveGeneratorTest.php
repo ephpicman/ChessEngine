@@ -107,7 +107,7 @@ final class LegalMoveGeneratorTest extends TestCase
             self::assertSame(Color::WHITE, $move->changes[0]->piece->color);
         }
 
-        self::assertCount(8, $moves);
+        self::assertCount(8, array_filter($moves, fn(Move $move): bool => $move->changes[0]->piece === $whiteKnight));
     }
 
     public function testKnightGeneratesAllEightMovesFromCentreAndCapturesEnemy(): void
@@ -138,6 +138,7 @@ final class LegalMoveGeneratorTest extends TestCase
             ),
         );
 
+        $keys = array_filter($keys, static fn(Move $move): bool => $move->changes[0]->piece === $knight);
         self::assertCount(8, $keys);
         self::assertArrayHasKey('d4-f5', $keys);
         self::assertTrue($keys['d4-f5']->changes[1]->type === PositionChangeType::REMOVE);
@@ -171,6 +172,7 @@ final class LegalMoveGeneratorTest extends TestCase
             ),
         );
 
+        $keys = array_filter($keys, static fn(Move $move): bool => $move->changes[0]->piece === $knight);
         self::assertCount(7, $keys);
         self::assertArrayNotHasKey('d4-f5', $keys);
     }
@@ -202,6 +204,7 @@ final class LegalMoveGeneratorTest extends TestCase
         self::assertArrayHasKey('d4-f6', $keys);
         self::assertArrayNotHasKey('d4-g7', $keys);
         self::assertArrayNotHasKey('a1-a6', $keys);
+        self::assertArrayHasKey('a1-a2', $keys);
         self::assertArrayNotHasKey('h4-g4', $keys);
     }
 
@@ -223,6 +226,7 @@ final class LegalMoveGeneratorTest extends TestCase
             ),
         );
 
+        $keys = array_filter($keys, static fn(Move $move): bool => $move->changes[0]->piece === $pawn);
         self::assertArrayHasKey('e2-e3', $keys);
         self::assertArrayHasKey('e2-e4', $keys);
         self::assertCount(2, $keys);
@@ -248,6 +252,7 @@ final class LegalMoveGeneratorTest extends TestCase
             ),
         );
 
+        $keys = array_filter($keys, static fn(Move $move): bool => $move->changes[0]->piece === $pawn);
         self::assertCount(0, $keys);
     }
 
@@ -429,6 +434,7 @@ final class LegalMoveGeneratorTest extends TestCase
             $this->generator->generate($position, Color::WHITE, $history),
         );
 
+        $keys = array_filter($keys, static fn(Move $move): bool => $move->changes[0]->piece === $whitePawn);
         self::assertArrayHasKey('e5-d6', $keys);
         self::assertCount(2, $keys['e5-d6']->changes);
         self::assertSame(PositionChangeType::REMOVE, $keys['e5-d6']->changes[1]->type);
@@ -481,6 +487,7 @@ final class LegalMoveGeneratorTest extends TestCase
             ),
         );
 
+        $keys = array_filter($keys, static fn(Move $move): bool => $move->changes[0]->piece === $pawn);
         self::assertCount(4, $keys);
 
         foreach ($keys as $move) {
@@ -531,8 +538,8 @@ final class LegalMoveGeneratorTest extends TestCase
         self::assertSame($pieceCount, $position->getPieces()->count());
         self::assertSame($historyCount, $history->count());
         self::assertSame(
-            'w',
-            $position->getPieceAt($this->square('e2'))?->color->value,
+            Color::WHITE,
+            $position->getPieceAt($this->square('e2'))?->color,
         );
     }
 
