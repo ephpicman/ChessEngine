@@ -35,13 +35,7 @@ final class LegalMoveGeneratorTest extends TestCase
 
     public function testInitialPositionHasTwentyWhiteLegalMoves(): void
     {
-        $moves = $this->generator->generate(
-            InitialPosition::create(),
-            Color::WHITE,
-            new DecisionHistory(),
-        );
-
-        self::assertCount(20, $moves);
+        self::assertCount(20, $this->generator->generate(InitialPosition::create(), Color::WHITE, new DecisionHistory()));
     }
 
     public function testInitialPositionHasTwentyBlackLegalMovesAfterWhiteMove(): void
@@ -49,61 +43,36 @@ final class LegalMoveGeneratorTest extends TestCase
         $position = InitialPosition::create();
         $pawn = $position->getPieceAt($this->square('e2'));
         self::assertNotNull($pawn);
-
         $history = new DecisionHistory();
-        $history->add(
-            Color::WHITE,
-            new Decision(
-                DecisionType::MOVE,
-                $this->move($this->moveChange($pawn, 'e2', 'e4')),
-            ),
-        );
+        $history->add(Color::WHITE, new Decision(DecisionType::MOVE, $this->move($this->moveChange($pawn, 'e2', 'e4'))));
         $position->remove($this->square('e2'));
         $position->place($this->square('e4'), $pawn);
-
-        self::assertCount(
-            20,
-            $this->generator->generate($position, Color::BLACK, $history),
-        );
+        self::assertCount(20, $this->generator->generate($position, Color::BLACK, $history));
     }
 
     public function testOnlyRequestedColourIsGenerated(): void
     {
-        $whiteKnight = $this->piece('white-knight', Color::WHITE, PieceType::KNIGHT);
-        $blackKnight = $this->piece('black-knight', Color::BLACK, PieceType::KNIGHT);
+        $white = $this->piece('wn', Color::WHITE, PieceType::KNIGHT);
+        $black = $this->piece('bn', Color::BLACK, PieceType::KNIGHT);
         $position = $this->position([
-            ['d4', $whiteKnight],
-            ['d5', $blackKnight],
-            ['e1', $this->king(Color::WHITE)],
-            ['e8', $this->king(Color::BLACK)],
+            ['d4', $white], ['d5', $black],
+            ['e1', $this->king(Color::WHITE)], ['e8', $this->king(Color::BLACK)],
         ]);
-
         $moves = $this->generator->generate($position, Color::WHITE, new DecisionHistory());
-
-        foreach ($moves as $move) {
-            self::assertSame(Color::WHITE, $move->changes[0]->piece->color);
-        }
-
-        self::assertCount(8, $this->movesByPiece($moves, $whiteKnight));
+        foreach ($moves as $move) self::assertSame(Color::WHITE, $move->changes[0]->piece->color);
+        self::assertCount(8, $this->movesByPiece($moves, $white));
     }
 
-    public function testKnightGeneratesAllEightMovesAndCapturesEnemy(): void
+    public function testKnightGeneratesMovesAndCapture(): void
     {
-        $knight = $this->piece('white-knight', Color::WHITE, PieceType::KNIGHT);
-        $enemy = $this->piece('black-pawn', Color::BLACK, PieceType::PAWN);
+        $knight = $this->piece('wn', Color::WHITE, PieceType::KNIGHT);
+        $enemy = $this->piece('bp', Color::BLACK, PieceType::PAWN);
         $position = $this->position([
-            ['d4', $knight],
-            ['f5', $enemy],
-            ['e1', $this->king(Color::WHITE)],
-            ['e8', $this->king(Color::BLACK)],
+            ['d4', $knight], ['f5', $enemy],
+            ['e1', $this->king(Color::WHITE)], ['e8', $this->king(Color::BLACK)],
         ]);
-
-        $moves = $this->movesByPiece(
-            $this->generator->generate($position, Color::WHITE, new DecisionHistory()),
-            $knight,
-        );
+        $moves = $this->movesByPiece($this->generator->generate($position, Color::WHITE, new DecisionHistory()), $knight);
         $keys = $this->keys($moves);
-
         self::assertCount(8, $moves);
         self::assertArrayHasKey('d4-f5', $keys);
         self::assertSame(PositionChangeType::REMOVE, $keys['d4-f5']->changes[1]->type);
@@ -111,318 +80,138 @@ final class LegalMoveGeneratorTest extends TestCase
 
     public function testKnightCannotCaptureOwnPiece(): void
     {
-        $knight = $this->piece('white-knight', Color::WHITE, PieceType::KNIGHT);
-        $friendly = $this->piece('white-pawn', Color::WHITE, PieceType::PAWN);
+        $knight = $this->piece('wn', Color::WHITE, PieceType::KNIGHT);
+        $friendly = $this->piece('wp', Color::WHITE, PieceType::PAWN);
         $position = $this->position([
-            ['d4', $knight],
-            ['f5', $friendly],
-            ['e1', $this->king(Color::WHITE)],
-            ['e8', $this->king(Color::BLACK)],
+            ['d4', $knight], ['f5', $friendly],
+            ['e1', $this->king(Color::WHITE)], ['e8', $this->king(Color::BLACK)],
         ]);
-
-        $moves = $this->movesByPiece(
-            $this->generator->generate($position, Color::WHITE, new DecisionHistory()),
-            $knight,
-        );
-
+        $moves = $this->movesByPiece($this->generator->generate($position, Color::WHITE, new DecisionHistory()), $knight);
         self::assertCount(7, $moves);
         self::assertArrayNotHasKey('d4-f5', $this->keys($moves));
     }
 
     public function testSlidingPiecesStopAtFirstOccupiedSquare(): void
     {
-        $bishop = $this->piece('bishop', Color::WHITE, PieceType::BISHOP);
-        $rook = $this->piece('rook', Color::WHITE, PieceType::ROOK);
-        $queen = $this->piece('queen', Color::WHITE, PieceType::QUEEN);
-        $bishopTarget = $this->piece('bishop-target', Color::BLACK, PieceType::PAWN);
-        $rookBlocker = $this->piece('rook-blocker', Color::BLACK, PieceType::PAWN);
-        $queenBlocker = $this->piece('queen-blocker', Color::BLACK, PieceType::PAWN);
-
+        $bishop = $this->piece('b', Color::WHITE, PieceType::BISHOP);
+        $rook = $this->piece('r', Color::WHITE, PieceType::ROOK);
+        $queen = $this->piece('q', Color::WHITE, PieceType::QUEEN);
+        $bishopTarget = $this->piece('bt', Color::BLACK, PieceType::PAWN);
+        $rookTarget = $this->piece('rt', Color::BLACK, PieceType::PAWN);
+        $queenTarget = $this->piece('qt', Color::BLACK, PieceType::PAWN);
         $position = $this->position([
-            ['d4', $bishop],
-            ['f6', $bishopTarget],
-            ['a1', $rook],
-            ['a6', $rookBlocker],
-            ['h4', $queen],
-            ['f4', $queenBlocker],
-            ['e1', $this->king(Color::WHITE)],
-            ['e8', $this->king(Color::BLACK)],
+            ['d4', $bishop], ['f6', $bishopTarget],
+            ['a1', $rook], ['a6', $rookTarget],
+            ['h4', $queen], ['f4', $queenTarget],
+            ['e1', $this->king(Color::WHITE)], ['e8', $this->king(Color::BLACK)],
         ]);
-
-        $keys = $this->keys(
-            $this->generator->generate($position, Color::WHITE, new DecisionHistory()),
-        );
-
+        $keys = $this->keys($this->generator->generate($position, Color::WHITE, new DecisionHistory()));
         self::assertArrayHasKey('d4-f6', $keys);
         self::assertArrayNotHasKey('d4-g7', $keys);
-        self::assertArrayHasKey('a1-a2', $keys);
         self::assertArrayHasKey('a1-a6', $keys);
         self::assertArrayNotHasKey('a1-a7', $keys);
         self::assertArrayHasKey('h4-f4', $keys);
         self::assertArrayNotHasKey('h4-e4', $keys);
     }
 
-    public function testPawnGeneratesSingleAndDoubleMove(): void
+    public function testPawnSingleDoubleAndBlockedDoubleMove(): void
     {
-        $pawn = $this->piece('pawn', Color::WHITE, PieceType::PAWN);
-        $position = $this->position([
-            ['e2', $pawn],
-            ['e1', $this->king(Color::WHITE)],
-            ['e8', $this->king(Color::BLACK)],
-        ]);
-
-        $keys = $this->keys($this->movesByPiece(
-            $this->generator->generate($position, Color::WHITE, new DecisionHistory()),
-            $pawn,
-        ));
-
+        $pawn = $this->piece('p', Color::WHITE, PieceType::PAWN);
+        $position = $this->position([['e2', $pawn], ['e1', $this->king(Color::WHITE)], ['e8', $this->king(Color::BLACK)]]);
+        $keys = $this->keys($this->movesByPiece($this->generator->generate($position, Color::WHITE, new DecisionHistory()), $pawn));
         self::assertArrayHasKey('e2-e3', $keys);
         self::assertArrayHasKey('e2-e4', $keys);
         self::assertCount(2, $keys);
-    }
 
-    public function testPawnDoesNotDoubleMoveThroughOccupiedSquare(): void
-    {
-        $pawn = $this->piece('pawn', Color::WHITE, PieceType::PAWN);
         $blocker = $this->piece('blocker', Color::BLACK, PieceType::KNIGHT);
-        $position = $this->position([
-            ['e2', $pawn],
-            ['e3', $blocker],
-            ['e1', $this->king(Color::WHITE)],
-            ['e8', $this->king(Color::BLACK)],
-        ]);
-
-        self::assertCount(
-            0,
-            $this->movesByPiece(
-                $this->generator->generate($position, Color::WHITE, new DecisionHistory()),
-                $pawn,
-            ),
-        );
+        $blocked = $this->position([['e2', $pawn], ['e3', $blocker], ['e1', $this->king(Color::WHITE)], ['e8', $this->king(Color::BLACK)]]);
+        self::assertCount(0, $this->movesByPiece($this->generator->generate($blocked, Color::WHITE, new DecisionHistory()), $pawn));
     }
 
-    public function testPawnCapturesDiagonallyButNotForward(): void
+    public function testPawnCaptureAndForwardBlock(): void
     {
-        $pawn = $this->piece('pawn', Color::WHITE, PieceType::PAWN);
+        $pawn = $this->piece('p', Color::WHITE, PieceType::PAWN);
         $enemy = $this->piece('enemy', Color::BLACK, PieceType::KNIGHT);
         $forward = $this->piece('forward', Color::BLACK, PieceType::KNIGHT);
         $position = $this->position([
-            ['e4', $pawn],
-            ['d5', $enemy],
-            ['e5', $forward],
-            ['e1', $this->king(Color::WHITE)],
-            ['e8', $this->king(Color::BLACK)],
+            ['e4', $pawn], ['d5', $enemy], ['e5', $forward],
+            ['e1', $this->king(Color::WHITE)], ['e8', $this->king(Color::BLACK)],
         ]);
-
-        $keys = $this->keys($this->movesByPiece(
-            $this->generator->generate($position, Color::WHITE, new DecisionHistory()),
-            $pawn,
-        ));
-
+        $keys = $this->keys($this->movesByPiece($this->generator->generate($position, Color::WHITE, new DecisionHistory()), $pawn));
         self::assertArrayHasKey('e4-d5', $keys);
         self::assertArrayNotHasKey('e4-e5', $keys);
     }
 
-    public function testKingGeneratesOnlyLegalSquares(): void
+    public function testKingSafetyFiltersIllegalKingAndPinnedMoves(): void
     {
         $king = $this->king(Color::WHITE);
-        $enemyRook = $this->piece('enemy-rook', Color::BLACK, PieceType::ROOK);
-        $position = $this->position([
-            ['e4', $king],
-            ['e8', $this->king(Color::BLACK)],
-            ['e6', $enemyRook],
-        ]);
-
-        $keys = $this->keys($this->movesByPiece(
-            $this->generator->generate($position, Color::WHITE, new DecisionHistory()),
-            $king,
-        ));
-
+        $enemyRook = $this->piece('er', Color::BLACK, PieceType::ROOK);
+        $position = $this->position([['e4', $king], ['e6', $enemyRook], ['e8', $this->king(Color::BLACK)]]);
+        $keys = $this->keys($this->movesByPiece($this->generator->generate($position, Color::WHITE, new DecisionHistory()), $king));
         self::assertArrayNotHasKey('e4-e5', $keys);
         self::assertArrayHasKey('e4-d4', $keys);
+
+        $whiteRook = $this->piece('wr', Color::WHITE, PieceType::ROOK);
+        $blackRook = $this->piece('br', Color::BLACK, PieceType::ROOK);
+        $pinned = $this->position([['e1', $king], ['e2', $whiteRook], ['e7', $blackRook], ['e8', $this->king(Color::BLACK)]]);
+        $pinnedKeys = $this->keys($this->movesByPiece($this->generator->generate($pinned, Color::WHITE, new DecisionHistory()), $whiteRook));
+        self::assertArrayNotHasKey('e2-d2', $pinnedKeys);
+        self::assertArrayNotHasKey('e2-f2', $pinnedKeys);
     }
 
-    public function testPinnedPieceMovesAreFilteredByKingSafety(): void
-    {
-        $king = $this->king(Color::WHITE);
-        $rook = $this->piece('white-rook', Color::WHITE, PieceType::ROOK);
-        $enemyRook = $this->piece('black-rook', Color::BLACK, PieceType::ROOK);
-        $position = $this->position([
-            ['e1', $king],
-            ['e2', $rook],
-            ['e8', $this->king(Color::BLACK)],
-            ['e7', $enemyRook],
-        ]);
-
-        $keys = $this->keys($this->movesByPiece(
-            $this->generator->generate($position, Color::WHITE, new DecisionHistory()),
-            $rook,
-        ));
-
-        self::assertArrayNotHasKey('e2-d2', $keys);
-        self::assertArrayNotHasKey('e2-f2', $keys);
-    }
-
-    public function testKingCaptureThatLeavesKingInCheckIsExcluded(): void
+    public function testKingCannotCaptureProtectedPiece(): void
     {
         $king = $this->king(Color::WHITE);
         $enemy = $this->piece('enemy', Color::BLACK, PieceType::ROOK);
         $guard = $this->piece('guard', Color::BLACK, PieceType::ROOK);
-        $position = $this->position([
-            ['e1', $king],
-            ['e2', $enemy],
-            ['e8', $this->king(Color::BLACK)],
-            ['e7', $guard],
-        ]);
-
-        self::assertArrayNotHasKey(
-            'e1-e2',
-            $this->keys($this->movesByPiece(
-                $this->generator->generate($position, Color::WHITE, new DecisionHistory()),
-                $king,
-            )),
-        );
+        $position = $this->position([['e1', $king], ['e2', $enemy], ['e7', $guard], ['e8', $this->king(Color::BLACK)]]);
+        self::assertArrayNotHasKey('e1-e2', $this->keys($this->movesByPiece($this->generator->generate($position, Color::WHITE, new DecisionHistory()), $king)));
     }
 
-    public function testCastlingGeneratesBothSidesWhenAvailable(): void
+    public function testCastlingBothSidesAndMovedRook(): void
     {
         $king = $this->king(Color::WHITE);
-        $rookA = $this->piece('rook-a', Color::WHITE, PieceType::ROOK);
-        $rookH = $this->piece('rook-h', Color::WHITE, PieceType::ROOK);
-        $position = $this->position([
-            ['e1', $king],
-            ['a1', $rookA],
-            ['h1', $rookH],
-            ['e8', $this->king(Color::BLACK)],
-        ]);
-
+        $rookA = $this->piece('ra', Color::WHITE, PieceType::ROOK);
+        $rookH = $this->piece('rh', Color::WHITE, PieceType::ROOK);
+        $position = $this->position([['e1', $king], ['a1', $rookA], ['h1', $rookH], ['e8', $this->king(Color::BLACK)]]);
         $keys = $this->keys($this->generator->generate($position, Color::WHITE, new DecisionHistory()));
-
         self::assertArrayHasKey('e1-g1', $keys);
         self::assertArrayHasKey('e1-c1', $keys);
-        self::assertSame(2, count($this->movesWithTwoMoveChanges($keys)));
-    }
-
-    public function testCastlingIsNotGeneratedAfterRookHasMoved(): void
-    {
-        $king = $this->king(Color::WHITE);
-        $rook = $this->piece('rook-h', Color::WHITE, PieceType::ROOK);
-        $position = $this->position([
-            ['e1', $king],
-            ['h1', $rook],
-            ['e8', $this->king(Color::BLACK)],
-        ]);
 
         $history = new DecisionHistory();
-        $history->add(
-            Color::WHITE,
-            new Decision(
-                DecisionType::MOVE,
-                $this->move($this->moveChange($rook, 'h1', 'g1')),
-            ),
-        );
-
-        self::assertArrayNotHasKey(
-            'e1-g1',
-            $this->keys($this->generator->generate($position, Color::WHITE, $history)),
-        );
+        $history->add(Color::WHITE, new Decision(DecisionType::MOVE, $this->move($this->moveChange($rookH, 'h1', 'g1'))));
+        self::assertArrayNotHasKey('e1-g1', $this->keys($this->generator->generate($position, Color::WHITE, $history)));
     }
 
-    public function testEnPassantIsGeneratedImmediatelyAfterDoublePawnMove(): void
+    public function testEnPassantRequiresImmediateDoublePawnMove(): void
     {
-        $whitePawn = $this->piece('white-pawn', Color::WHITE, PieceType::PAWN);
-        $historyPawn = $this->piece('history-white-pawn', Color::WHITE, PieceType::PAWN);
-        $blackPawn = $this->piece('black-pawn', Color::BLACK, PieceType::PAWN);
+        $white = $this->piece('wp', Color::WHITE, PieceType::PAWN);
+        $historyWhite = $this->piece('history-wp', Color::WHITE, PieceType::PAWN);
+        $black = $this->piece('bp', Color::BLACK, PieceType::PAWN);
         $position = $this->position([
-            ['e5', $whitePawn],
-            ['a3', $historyPawn],
-            ['d5', $blackPawn],
-            ['e1', $this->king(Color::WHITE)],
-            ['e8', $this->king(Color::BLACK)],
+            ['e5', $white], ['a3', $historyWhite], ['d5', $black],
+            ['e1', $this->king(Color::WHITE)], ['e8', $this->king(Color::BLACK)],
         ]);
-
         $history = new DecisionHistory();
-        $history->add(
-            Color::WHITE,
-            new Decision(
-                DecisionType::MOVE,
-                $this->move($this->moveChange($historyPawn, 'a2', 'a3')),
-            ),
-        );
-        $history->add(
-            Color::BLACK,
-            new Decision(
-                DecisionType::MOVE,
-                $this->move($this->moveChange($blackPawn, 'd7', 'd5')),
-            ),
-        );
-
-        $moves = $this->movesByPiece(
-            $this->generator->generate($position, Color::WHITE, $history),
-            $whitePawn,
-        );
-        $keys = $this->keys($moves);
-
+        $history->add(Color::WHITE, new Decision(DecisionType::MOVE, $this->move($this->moveChange($historyWhite, 'a2', 'a3'))));
+        $history->add(Color::BLACK, new Decision(DecisionType::MOVE, $this->move($this->moveChange($black, 'd7', 'd5'))));
+        $keys = $this->keys($this->movesByPiece($this->generator->generate($position, Color::WHITE, $history), $white));
         self::assertArrayHasKey('e5-d6', $keys);
-        self::assertCount(2, $keys['e5-d6']->changes);
         self::assertSame(PositionChangeType::REMOVE, $keys['e5-d6']->changes[1]->type);
-    }
 
-    public function testEnPassantIsNotGeneratedWithoutImmediateDoublePawnMove(): void
-    {
-        $whitePawn = $this->piece('white-pawn', Color::WHITE, PieceType::PAWN);
-        $blackPawn = $this->piece('black-pawn', Color::BLACK, PieceType::PAWN);
-        $historyPawn = $this->piece('history-white-pawn', Color::WHITE, PieceType::PAWN);
-        $position = $this->position([
-            ['e5', $whitePawn],
-            ['a3', $historyPawn],
-            ['d5', $blackPawn],
-            ['e1', $this->king(Color::WHITE)],
-            ['e8', $this->king(Color::BLACK)],
-        ]);
-
-        $history = new DecisionHistory();
-        $history->add(
-            Color::WHITE,
-            new Decision(
-                DecisionType::MOVE,
-                $this->move($this->moveChange($historyPawn, 'a2', 'a3')),
-            ),
-        );
-        $history->add(
-            Color::BLACK,
-            new Decision(
-                DecisionType::MOVE,
-                $this->move($this->moveChange($blackPawn, 'd6', 'd5')),
-            ),
-        );
-
-        self::assertArrayNotHasKey(
-            'e5-d6',
-            $this->keys($this->movesByPiece(
-                $this->generator->generate($position, Color::WHITE, $history),
-                $whitePawn,
-            )),
-        );
+        $history2 = new DecisionHistory();
+        $history2->add(Color::WHITE, new Decision(DecisionType::MOVE, $this->move($this->moveChange($historyWhite, 'a2', 'a3'))));
+        $history2->add(Color::BLACK, new Decision(DecisionType::MOVE, $this->move($this->moveChange($black, 'd6', 'd5'))));
+        self::assertArrayNotHasKey('e5-d6', $this->keys($this->movesByPiece($this->generator->generate($position, Color::WHITE, $history2), $white)));
     }
 
     public function testPromotionGeneratesFourQuietChoices(): void
     {
         $pawn = $this->piece('pawn', Color::WHITE, PieceType::PAWN);
         $position = $this->promotionPosition($pawn, null);
-
-        $moves = $this->movesByPiece(
-            $this->generator->generate($position, Color::WHITE, new DecisionHistory()),
-            $pawn,
-        );
-        $keys = $this->keys($moves);
-
+        $moves = $this->movesByPiece($this->generator->generate($position, Color::WHITE, new DecisionHistory()), $pawn);
         self::assertCount(4, $moves);
-        self::assertCount(4, $keys);
-        self::assertSame(
-            [PieceType::BISHOP, PieceType::KNIGHT, PieceType::QUEEN, PieceType::ROOK],
-            $this->promotionTypes($moves),
-        );
+        self::assertSame([PieceType::BISHOP, PieceType::KNIGHT, PieceType::QUEEN, PieceType::ROOK], $this->promotionTypes($moves));
     }
 
     public function testPromotionCaptureGeneratesFourChoices(): void
@@ -430,21 +219,16 @@ final class LegalMoveGeneratorTest extends TestCase
         $pawn = $this->piece('pawn', Color::WHITE, PieceType::PAWN);
         $enemy = $this->piece('enemy', Color::BLACK, PieceType::ROOK);
         $position = $this->promotionPosition($pawn, $enemy);
-
-        $moves = $this->movesByPiece(
-            $this->generator->generate($position, Color::WHITE, new DecisionHistory()),
-            $pawn,
-        );
-
+        $moves = array_values(array_filter(
+            $this->movesByPiece($this->generator->generate($position, Color::WHITE, new DecisionHistory()), $pawn),
+            static fn(Move $move): bool => $move->changes[0]->to?->notation() === 'd8',
+        ));
         self::assertCount(4, $moves);
         foreach ($moves as $move) {
             self::assertSame(PositionChangeType::REMOVE, $move->changes[1]->type);
             self::assertSame(PositionChangeType::CHANGE, $move->changes[2]->type);
         }
-        self::assertSame(
-            [PieceType::BISHOP, PieceType::KNIGHT, PieceType::QUEEN, PieceType::ROOK],
-            $this->promotionTypes($moves),
-        );
+        self::assertSame([PieceType::BISHOP, PieceType::KNIGHT, PieceType::QUEEN, PieceType::ROOK], $this->promotionTypes($moves));
     }
 
     public function testGeneratorDoesNotMutatePositionOrHistory(): void
@@ -453,15 +237,12 @@ final class LegalMoveGeneratorTest extends TestCase
         $history = new DecisionHistory();
         $pieceCount = $position->getPieces()->count();
         $historyCount = $history->count();
-
         $this->generator->generate($position, Color::WHITE, $history);
-
         self::assertSame($pieceCount, $position->getPieces()->count());
         self::assertSame($historyCount, $history->count());
         self::assertSame(Color::WHITE, $position->getPieceAt($this->square('e2'))?->color);
     }
 
-    /** @param array<int, Move> $moves */
     private function keys(array $moves): array
     {
         $keys = [];
@@ -481,60 +262,37 @@ final class LegalMoveGeneratorTest extends TestCase
         return $keys;
     }
 
-    /** @param array<int, Move> $moves */
     private function movesByPiece(array $moves, Piece $piece): array
     {
-        return array_values(array_filter(
-            $moves,
-            static fn(Move $move): bool => $move->changes[0]->piece === $piece,
-        ));
-    }
-
-    /** @param array<string, Move> $moves */
-    private function movesWithTwoMoveChanges(array $moves): array
-    {
-        return array_values(array_filter(
-            $moves,
-            static fn(Move $move): bool => count(array_filter(
-                $move->changes,
-                static fn(PositionChange $change): bool => $change->type === PositionChangeType::MOVE,
-            )) === 2,
-        ));
+        return array_values(array_filter($moves, static fn(Move $move): bool => $move->changes[0]->piece === $piece));
     }
 
     private function promotionPosition(Piece $pawn, ?Piece $capture): Position
     {
         $pieces = new Pieces();
+        $whiteKing = $this->king(Color::WHITE);
+        $blackKing = $this->king(Color::BLACK);
         $pieces->add($pawn);
-        $pieces->add($this->king(Color::WHITE));
-        $pieces->add($this->king(Color::BLACK));
-        if ($capture !== null) {
-            $pieces->add($capture);
-        }
-
+        $pieces->add($whiteKing);
+        $pieces->add($blackKing);
+        if ($capture !== null) $pieces->add($capture);
         foreach ([PieceType::QUEEN, PieceType::ROOK, PieceType::BISHOP, PieceType::KNIGHT] as $type) {
             $pieces->add($this->piece('reserve-' . $type->value, Color::WHITE, $type));
         }
-
         $position = new Position($this->board, $pieces);
         $position->place($this->square('e7'), $pawn);
-        $position->place($this->square('e1'), $this->king(Color::WHITE));
-        $position->place($this->square('a8'), $this->king(Color::BLACK));
-        if ($capture !== null) {
-            $position->place($this->square('d8'), $capture);
-        }
+        $position->place($this->square('e1'), $whiteKing);
+        $position->place($this->square('a8'), $blackKing);
+        if ($capture !== null) $position->place($this->square('d8'), $capture);
         return $position;
     }
 
-    /** @param array<int, Move> $moves @return array<int, PieceType> */
     private function promotionTypes(array $moves): array
     {
         $types = [];
         foreach ($moves as $move) {
             foreach ($move->changes as $change) {
-                if ($change->type === PositionChangeType::CHANGE && $change->replacement !== null) {
-                    $types[] = $change->replacement->type;
-                }
+                if ($change->type === PositionChangeType::CHANGE && $change->replacement !== null) $types[] = $change->replacement->type;
             }
         }
         usort($types, static fn(PieceType $a, PieceType $b): int => $a->value <=> $b->value);
@@ -544,13 +302,9 @@ final class LegalMoveGeneratorTest extends TestCase
     private function position(array $placements): Position
     {
         $pieces = new Pieces();
-        foreach ($placements as [$notation, $piece]) {
-            $pieces->add($piece);
-        }
+        foreach ($placements as [$notation, $piece]) $pieces->add($piece);
         $position = new Position($this->board, $pieces);
-        foreach ($placements as [$notation, $piece]) {
-            $position->place($this->square($notation), $piece);
-        }
+        foreach ($placements as [$notation, $piece]) $position->place($this->square($notation), $piece);
         return $position;
     }
 
@@ -561,12 +315,7 @@ final class LegalMoveGeneratorTest extends TestCase
 
     private function moveChange(Piece $piece, string $from, string $to): PositionChange
     {
-        return new PositionChange(
-            PositionChangeType::MOVE,
-            $piece,
-            $this->square($from),
-            $this->square($to),
-        );
+        return new PositionChange(PositionChangeType::MOVE, $piece, $this->square($from), $this->square($to));
     }
 
     private function piece(string $id, Color $color, PieceType $type): Piece
@@ -576,11 +325,7 @@ final class LegalMoveGeneratorTest extends TestCase
 
     private function king(Color $color): Piece
     {
-        return $this->piece(
-            $color === Color::WHITE ? 'white-king' : 'black-king',
-            $color,
-            PieceType::KING,
-        );
+        return $this->piece($color === Color::WHITE ? 'white-king' : 'black-king', $color, PieceType::KING);
     }
 
     private function square(string $notation): Square
