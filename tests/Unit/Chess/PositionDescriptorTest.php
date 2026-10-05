@@ -55,26 +55,22 @@ final class PositionDescriptorTest extends TestCase
             }
         }
 
-        $pieces = [
-            new Piece('wq', Color::WHITE, PieceType::QUEEN),
-            new Piece('wr1', Color::WHITE, PieceType::ROOK),
-            new Piece('wr2', Color::WHITE, PieceType::ROOK),
-            new Piece('wb1', Color::WHITE, PieceType::BISHOP),
-            new Piece('wb2', Color::WHITE, PieceType::BISHOP),
-            new Piece('wn1', Color::WHITE, PieceType::KNIGHT),
-            new Piece('wn2', Color::WHITE, PieceType::KNIGHT),
-        ];
+        $pieces = [];
 
-        foreach ($pieces as $index => $piece) {
-            $position->getPieces()->add($piece);
-            $position->place(
-                $position->getBoard()->getSquare($index),
-                $piece,
-            );
+        for ($index = 0; $index < 9; $index++) {
+            $pieces[] = new Piece('maximum-q' . $index, Color::WHITE, PieceType::QUEEN);
         }
 
-        for ($index = 7; $index < 16; $index++) {
-            $piece = new Piece('wp' . $index, Color::WHITE, PieceType::PAWN);
+        for ($index = 0; $index < 2; $index++) {
+            $pieces[] = new Piece('maximum-r' . $index, Color::WHITE, PieceType::ROOK);
+        }
+
+        for ($index = 0; $index < 2; $index++) {
+            $pieces[] = new Piece('maximum-b' . $index, Color::WHITE, PieceType::BISHOP);
+            $pieces[] = new Piece('maximum-n' . $index, Color::WHITE, PieceType::KNIGHT);
+        }
+
+        foreach ($pieces as $index => $piece) {
             $position->getPieces()->add($piece);
             $position->place(
                 $position->getBoard()->getSquare($index),
@@ -98,7 +94,7 @@ final class PositionDescriptorTest extends TestCase
         ]);
 
         self::assertEqualsWithDelta(
-            43 / 103,
+            40 / 103,
             $descriptor->getMaterialScore(Color::WHITE),
             0.000000001,
         );
@@ -107,16 +103,23 @@ final class PositionDescriptorTest extends TestCase
     public function testDescriptorKeepsCalculatedValuesAfterPositionChanges(): void
     {
         $position = InitialPosition::create();
+
+        foreach ($position->getPieces()->all() as $piece) {
+            if ($position->hasPiece($piece)) {
+                $position->remove($position->getSquareOf($piece));
+            }
+        }
+
         $board = $position->getBoard();
 
-        $piece = new Piece('wq1', Color::WHITE, PieceType::QUEEN);
+        $piece = new Piece('snapshot-q1', Color::WHITE, PieceType::QUEEN);
         $position->getPieces()->add($piece);
         $position->place($board->getSquareByNotation('a1'), $piece);
 
         $descriptor = new PositionDescriptor($position);
         $initialScore = $descriptor->getMaterialScore(Color::WHITE);
 
-        $secondPiece = new Piece('wq2', Color::WHITE, PieceType::QUEEN);
+        $secondPiece = new Piece('snapshot-q2', Color::WHITE, PieceType::QUEEN);
         $position->getPieces()->add($secondPiece);
         $position->place($board->getSquareByNotation('b1'), $secondPiece);
 
