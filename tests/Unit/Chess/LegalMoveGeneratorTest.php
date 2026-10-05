@@ -470,7 +470,7 @@ final class LegalMoveGeneratorTest extends TestCase
         $position = $this->position([
             ['e7', $pawn],
             ['e1', $this->king(Color::WHITE)],
-            ['e8', $this->king(Color::BLACK)],
+            ['a8', $this->king(Color::BLACK)],
         ], false);
 
         $keys = $this->keys(
@@ -583,13 +583,13 @@ final class LegalMoveGeneratorTest extends TestCase
     ): Position {
         $pieces = new Pieces();
 
-        if ($includeAllPieces) {
-            foreach ($placements as [$notation, $piece]) {
-                $pieces->add($piece);
-            }
-        } else {
-            foreach ($placements as [$notation, $piece]) {
-                $pieces->add($piece);
+        foreach ($placements as [$notation, $piece]) {
+            $pieces->add($piece);
+        }
+
+        if (!$includeAllPieces) {
+            foreach ($this->currentPromotionPieces as $reserve) {
+                $pieces->add($reserve);
             }
         }
 
