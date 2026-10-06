@@ -41,12 +41,12 @@ final readonly class PositionDescriptor
         DecisionHistory $history,
     ): array {
         return [
-            'material_score' => $this->calculateMaterialScores($position, $config),
-            'piece_count_score' => $this->calculatePieceCountScores($position),
             'legal_destination_score' => $this->calculateLegalDestinationScores(
                 $position,
                 $history,
             ),
+            'material_score' => $this->calculateMaterialScores($position, $config),
+            'piece_count_score' => $this->calculatePieceCountScores($position),
         ];
     }
 
