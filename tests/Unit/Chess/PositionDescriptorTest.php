@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace Ephpicman\Chess\Tests\Unit\Chess;
 
 use Ephpicman\ChessEngine\Chess\Color;
+use Ephpicman\ChessEngine\Chess\DecisionHistory;
 use Ephpicman\ChessEngine\Chess\InitialPosition;
+use Ephpicman\ChessEngine\Chess\LegalMoveGenerator;
+use Ephpicman\ChessEngine\Chess\MoveValidator;
 use Ephpicman\ChessEngine\Chess\Piece;
 use Ephpicman\ChessEngine\Chess\PieceType;
 use Ephpicman\ChessEngine\Chess\PositionDescriptor;
@@ -123,7 +126,11 @@ final class PositionDescriptorTest extends TestCase
 
     public function testCalculatesUniqueLegalDestinationScoreForInitialPosition(): void
     {
-        $descriptor = new PositionDescriptor(InitialPosition::create());
+        $position = InitialPosition::create();
+        $generator = new LegalMoveGenerator(new MoveValidator());
+        self::assertCount(20, $generator->generate($position, Color::WHITE, new DecisionHistory()));
+
+        $descriptor = new PositionDescriptor($position);
 
         self::assertEqualsWithDelta(16 / 48, $descriptor->getLegalDestinationScore(Color::WHITE), 0.000000001);
         self::assertEqualsWithDelta(16 / 48, $descriptor->getLegalDestinationScore(Color::BLACK), 0.000000001);
