@@ -121,13 +121,13 @@ final readonly class PositionDescriptor
             $destinations = [];
 
             foreach ($generator->generate($position, $color, $history) as $move) {
-                $change = $move->changes[0] ?? null;
+                $destination = $move->changes[0]->to ?? null;
 
-                if ($change?->type !== PositionChangeType::MOVE || $change->to === null) {
+                if ($destination === null) {
                     continue;
                 }
 
-                $destinations[$change->to->notation()] = true;
+                $destinations[$destination->getIndex()] = true;
             }
 
             $pieceCount = $this->countPieces($position, $color);
