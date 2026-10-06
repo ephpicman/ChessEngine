@@ -100,12 +100,18 @@ final readonly class PositionDescriptor
     }
 
     /**
-     * Returns the proportion of board squares that are legal destinations
-     * for at least one piece of a colour.
+     * Returns the proportion of currently available board squares that are
+     * legal destinations for at least one piece of a colour.
+     *
+     * A colour cannot move to a square already occupied by one of its own
+     * pieces. Therefore the theoretical destination-space maximum depends
+     * on that colour's current piece count:
+     *
+     *     64 - own piece count
      *
      * The metric is:
      *
-     *     unique legal destination squares / 64
+     *     unique legal destination squares / (64 - own piece count)
      *
      * Multiple legal moves ending on the same square count only once.
      * The supplied DecisionHistory is used during construction so that
@@ -248,10 +254,37 @@ final readonly class PositionDescriptor
                 }
             }
 
-            $scores[$color->value] = count($destinations) / 64.0;
+            $pieceCount = $this->countPieces($position, $color);
+            $maximumDestinations = 64 - $pieceCount;
+
+            $scores[$color->value] = $maximumDestinations > 0
+                ? count($destinations) / $maximumDestinations
+                : 0.0;
         }
 
         return $scores;
+    }
+
+    /**
+     * Counts the pieces currently belonging to a colour.
+     *
+     * @param Position $position The position to inspect.
+     * @param Color $color The colour to count.
+     * @return int The current piece count.
+     */
+    private function countPieces(Position $position, Color $color): int
+    {
+        $count = 0;
+
+        for ($index = 0; $index < 64; $index++) {
+            $piece = $position->getPieceAt($position->getBoard()->getSquare($index));
+
+            if ($piece !== null && $piece->color === $color) {
+                $count++;
+            }
+        }
+
+        return $count;
     }
 
     /**
