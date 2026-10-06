@@ -125,8 +125,8 @@ final class PositionDescriptorTest extends TestCase
     {
         $descriptor = new PositionDescriptor(InitialPosition::create());
 
-        self::assertEqualsWithDelta(20 / 48, $descriptor->getLegalDestinationScore(Color::WHITE), 0.000000001);
-        self::assertEqualsWithDelta(20 / 48, $descriptor->getLegalDestinationScore(Color::BLACK), 0.000000001);
+        self::assertEqualsWithDelta(16 / 48, $descriptor->getLegalDestinationScore(Color::WHITE), 0.000000001);
+        self::assertEqualsWithDelta(16 / 48, $descriptor->getLegalDestinationScore(Color::BLACK), 0.000000001);
     }
 
     public function testCountsASharedLegalDestinationOnlyOnce(): void
@@ -155,7 +155,7 @@ final class PositionDescriptorTest extends TestCase
 
         $descriptor = new PositionDescriptor($position);
 
-        self::assertEqualsWithDelta(10 / 61, $descriptor->getLegalDestinationScore(Color::WHITE), 0.000000001);
+        self::assertEqualsWithDelta(9 / 61, $descriptor->getLegalDestinationScore(Color::WHITE), 0.000000001);
     }
 
     public function testDescriptorKeepsCalculatedValuesAfterPositionChanges(): void
