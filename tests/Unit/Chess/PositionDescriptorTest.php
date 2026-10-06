@@ -17,16 +17,8 @@ final class PositionDescriptorTest extends TestCase
     {
         $descriptor = new PositionDescriptor(InitialPosition::create());
 
-        self::assertEqualsWithDelta(
-            39 / 103,
-            $descriptor->getMaterialScore(Color::WHITE),
-            0.000000001,
-        );
-        self::assertEqualsWithDelta(
-            39 / 103,
-            $descriptor->getMaterialScore(Color::BLACK),
-            0.000000001,
-        );
+        self::assertEqualsWithDelta(39 / 103, $descriptor->getMaterialScore(Color::WHITE), 0.000000001);
+        self::assertEqualsWithDelta(39 / 103, $descriptor->getMaterialScore(Color::BLACK), 0.000000001);
     }
 
     public function testCalculatesZeroMaterialScoreForPositionWithoutMaterial(): void
@@ -72,10 +64,7 @@ final class PositionDescriptorTest extends TestCase
 
         foreach ($pieces as $index => $piece) {
             $position->getPieces()->add($piece);
-            $position->place(
-                $position->getBoard()->getSquare($index),
-                $piece,
-            );
+            $position->place($position->getBoard()->getSquare($index), $piece);
         }
 
         $descriptor = new PositionDescriptor($position);
@@ -93,43 +82,51 @@ final class PositionDescriptorTest extends TestCase
             ],
         ]);
 
-        self::assertEqualsWithDelta(
-            40 / 103,
-            $descriptor->getMaterialScore(Color::WHITE),
-            0.000000001,
-        );
+        self::assertEqualsWithDelta(40 / 103, $descriptor->getMaterialScore(Color::WHITE), 0.000000001);
     }
 
-    public function testCalculatesOccupiedSquareScoreForInitialPosition(): void
+    public function testCalculatesPieceCountScoreForInitialPosition(): void
     {
         $descriptor = new PositionDescriptor(InitialPosition::create());
 
-        self::assertEqualsWithDelta(
-            16 / 64,
-            $descriptor->getOccupiedSquareScore(Color::WHITE),
-            0.000000001,
-        );
-        self::assertEqualsWithDelta(
-            16 / 64,
-            $descriptor->getOccupiedSquareScore(Color::BLACK),
-            0.000000001,
-        );
+        self::assertSame(1.0, $descriptor->getPieceCountScore(Color::WHITE));
+        self::assertSame(1.0, $descriptor->getPieceCountScore(Color::BLACK));
+    }
+
+    public function testCalculatesPieceCountScoreUsingSixteenAsTheMaximum(): void
+    {
+        $position = InitialPosition::create();
+
+        foreach ($position->getPieces()->all() as $piece) {
+            if ($position->hasPiece($piece)) {
+                $position->remove($position->getSquareOf($piece));
+            }
+        }
+
+        $pieces = [
+            new Piece('count-king', Color::WHITE, PieceType::KING),
+        ];
+
+        for ($index = 0; $index < 15; $index++) {
+            $pieces[] = new Piece('count-q' . $index, Color::WHITE, PieceType::QUEEN);
+        }
+
+        foreach ($pieces as $index => $piece) {
+            $position->getPieces()->add($piece);
+            $position->place($position->getBoard()->getSquare($index), $piece);
+        }
+
+        $descriptor = new PositionDescriptor($position);
+
+        self::assertSame(1.0, $descriptor->getPieceCountScore(Color::WHITE));
     }
 
     public function testCalculatesUniqueLegalDestinationScoreForInitialPosition(): void
     {
         $descriptor = new PositionDescriptor(InitialPosition::create());
 
-        self::assertEqualsWithDelta(
-            20 / 64,
-            $descriptor->getLegalDestinationScore(Color::WHITE),
-            0.000000001,
-        );
-        self::assertEqualsWithDelta(
-            20 / 64,
-            $descriptor->getLegalDestinationScore(Color::BLACK),
-            0.000000001,
-        );
+        self::assertEqualsWithDelta(20 / 64, $descriptor->getLegalDestinationScore(Color::WHITE), 0.000000001);
+        self::assertEqualsWithDelta(20 / 64, $descriptor->getLegalDestinationScore(Color::BLACK), 0.000000001);
     }
 
     public function testCountsASharedLegalDestinationOnlyOnce(): void
@@ -153,19 +150,12 @@ final class PositionDescriptorTest extends TestCase
 
         foreach ($pieces as $index => $piece) {
             $position->getPieces()->add($piece);
-            $position->place(
-                $position->getBoard()->getSquareByNotation($squares[$index]),
-                $piece,
-            );
+            $position->place($position->getBoard()->getSquareByNotation($squares[$index]), $piece);
         }
 
         $descriptor = new PositionDescriptor($position);
 
-        self::assertEqualsWithDelta(
-            10 / 64,
-            $descriptor->getLegalDestinationScore(Color::WHITE),
-            0.000000001,
-        );
+        self::assertEqualsWithDelta(10 / 64, $descriptor->getLegalDestinationScore(Color::WHITE), 0.000000001);
     }
 
     public function testDescriptorKeepsCalculatedValuesAfterPositionChanges(): void
@@ -186,7 +176,7 @@ final class PositionDescriptorTest extends TestCase
 
         $descriptor = new PositionDescriptor($position);
         $initialScore = $descriptor->getMaterialScore(Color::WHITE);
-        $initialOccupiedScore = $descriptor->getOccupiedSquareScore(Color::WHITE);
+        $initialPieceCountScore = $descriptor->getPieceCountScore(Color::WHITE);
         $initialLegalDestinationScore = $descriptor->getLegalDestinationScore(Color::WHITE);
 
         $secondPiece = new Piece('snapshot-q2', Color::WHITE, PieceType::QUEEN);
@@ -194,23 +184,9 @@ final class PositionDescriptorTest extends TestCase
         $position->place($board->getSquareByNotation('b1'), $secondPiece);
 
         self::assertSame($initialScore, $descriptor->getMaterialScore(Color::WHITE));
-        self::assertSame(
-            $initialOccupiedScore,
-            $descriptor->getOccupiedSquareScore(Color::WHITE),
-        );
-        self::assertSame(
-            $initialLegalDestinationScore,
-            $descriptor->getLegalDestinationScore(Color::WHITE),
-        );
-        self::assertEqualsWithDelta(
-            18 / 103,
-            (new PositionDescriptor($position))->getMaterialScore(Color::WHITE),
-            0.000000001,
-        );
-        self::assertEqualsWithDelta(
-            2 / 64,
-            (new PositionDescriptor($position))->getOccupiedSquareScore(Color::WHITE),
-            0.000000001,
-        );
+        self::assertSame($initialPieceCountScore, $descriptor->getPieceCountScore(Color::WHITE));
+        self::assertSame($initialLegalDestinationScore, $descriptor->getLegalDestinationScore(Color::WHITE));
+        self::assertEqualsWithDelta(18 / 103, (new PositionDescriptor($position))->getMaterialScore(Color::WHITE), 0.000000001);
+        self::assertEqualsWithDelta(2 / 16, (new PositionDescriptor($position))->getPieceCountScore(Color::WHITE), 0.000000001);
     }
 }
