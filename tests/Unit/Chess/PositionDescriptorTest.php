@@ -116,10 +116,6 @@ final class PositionDescriptorTest extends TestCase
             $position->place($position->getBoard()->getSquare($index), $piece);
         }
 
-        $blackKing = new Piece('count-black-king', Color::BLACK, PieceType::KING);
-        $position->getPieces()->add($blackKing);
-        $position->place($position->getBoard()->getSquare(63), $blackKing);
-
         $descriptor = new PositionDescriptor($position);
 
         self::assertSame(1.0, $descriptor->getPieceCountScore(Color::WHITE));
@@ -129,8 +125,8 @@ final class PositionDescriptorTest extends TestCase
     {
         $descriptor = new PositionDescriptor(InitialPosition::create());
 
-        self::assertEqualsWithDelta(20 / 64, $descriptor->getLegalDestinationScore(Color::WHITE), 0.000000001);
-        self::assertEqualsWithDelta(20 / 64, $descriptor->getLegalDestinationScore(Color::BLACK), 0.000000001);
+        self::assertEqualsWithDelta(20 / 48, $descriptor->getLegalDestinationScore(Color::WHITE), 0.000000001);
+        self::assertEqualsWithDelta(20 / 48, $descriptor->getLegalDestinationScore(Color::BLACK), 0.000000001);
     }
 
     public function testCountsASharedLegalDestinationOnlyOnce(): void
@@ -159,7 +155,37 @@ final class PositionDescriptorTest extends TestCase
 
         $descriptor = new PositionDescriptor($position);
 
-        self::assertEqualsWithDelta(10 / 64, $descriptor->getLegalDestinationScore(Color::WHITE), 0.000000001);
+        self::assertEqualsWithDelta(10 / 61, $descriptor->getLegalDestinationScore(Color::WHITE), 0.000000001);
+    }
+
+    public function testLegalDestinationScoreUsesOwnPieceCountAsTheExcludedSpace(): void
+    {
+        $position = InitialPosition::create();
+
+        foreach ($position->getPieces()->all() as $piece) {
+            if ($position->hasPiece($piece)) {
+                $position->remove($position->getSquareOf($piece));
+            }
+        }
+
+        $whiteKing = new Piece('destination-white-king', Color::WHITE, PieceType::KING);
+        $blackKing = new Piece('destination-black-king', Color::BLACK, PieceType::KING);
+        $whiteQueen = new Piece('destination-white-queen', Color::WHITE, PieceType::QUEEN);
+
+        $position->getPieces()->add($whiteKing);
+        $position->place($position->getBoard()->getSquareByNotation('a1'), $whiteKing);
+        $position->getPieces()->add($whiteQueen);
+        $position->place($position->getBoard()->getSquareByNotation('d4'), $whiteQueen);
+        $position->getPieces()->add($blackKing);
+        $position->place($position->getBoard()->getSquareByNotation('h8'), $blackKing);
+
+        $descriptor = new PositionDescriptor($position);
+
+        self::assertEqualsWithDelta(
+            27 / 62,
+            $descriptor->getLegalDestinationScore(Color::WHITE),
+            0.000000001,
+        );
     }
 
     public function testDescriptorKeepsCalculatedValuesAfterPositionChanges(): void
