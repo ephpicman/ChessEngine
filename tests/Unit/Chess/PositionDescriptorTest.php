@@ -116,6 +116,10 @@ final class PositionDescriptorTest extends TestCase
             $position->place($position->getBoard()->getSquare($index), $piece);
         }
 
+        $blackKing = new Piece('count-black-king', Color::BLACK, PieceType::KING);
+        $position->getPieces()->add($blackKing);
+        $position->place($position->getBoard()->getSquare(63), $blackKing);
+
         $descriptor = new PositionDescriptor($position);
 
         self::assertSame(1.0, $descriptor->getPieceCountScore(Color::WHITE));
