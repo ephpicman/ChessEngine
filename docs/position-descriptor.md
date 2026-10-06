@@ -21,21 +21,29 @@ Default values:
 
 The default normalisation maximum is `103`.
 
-### Occupied-square score
+### Piece-count score
 
-Measures how much of the board is currently occupied by pieces of a colour:
-
-```text
-occupied squares / 64
-```
-
-Each occupied square counts once. Piece value is irrelevant to this feature.
-
-For the initial position each colour has 16 occupied squares:
+Measures the number of pieces currently present for a colour relative to the maximum possible piece count for one colour:
 
 ```text
-16 / 64 = 0.25
+piece count / 16
 ```
+
+The maximum is `16`, not `64`. A colour can have at most sixteen pieces on the board: one king and fifteen non-king pieces. Promotion changes a pawn's type but does not create an additional piece, so it cannot increase this upper bound.
+
+For the initial position each colour has 16 pieces:
+
+```text
+16 / 16 = 1.0
+```
+
+A position with two pieces of a colour has:
+
+```text
+2 / 16 = 0.125
+```
+
+The feature is exposed as `getPieceCountScore()`.
 
 ### Legal-destination score
 
