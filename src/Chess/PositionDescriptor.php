@@ -4,33 +4,8 @@ declare(strict_types=1);
 
 namespace Ephpicman\ChessEngine\Chess;
 
-/**
- * Describes a chess position through deterministic numeric features.
- *
- * A descriptor is a snapshot of the supplied position and, where required,
- * the supplied decision history. All configured features are calculated
- * during construction and the resulting values are immutable afterwards.
- *
- * Position-only calculations depend only on the supplied position.
- * Legal-destination calculations additionally depend on DecisionHistory
- * because castling and en-passant legality cannot be determined from piece
- * placement alone.
- *
- * Every descriptor value is represented as a float in the inclusive
- * range [0, 1].
- *
- * @package   Ephpicman\ChessEngine
- * @author    Ephpicman <sina.kuhestani@gmail.com>
- * @since     1.0.0
- * @copyright 2026 Sina Kuhestani
- */
 final readonly class PositionDescriptor
 {
-    /**
-     * The calculated descriptor values.
-     *
-     * @var array<string, mixed>
-     */
     private array $values;
 
     public function __construct(
@@ -146,14 +121,13 @@ final readonly class PositionDescriptor
             $destinations = [];
 
             foreach ($generator->generate($position, $color, $history) as $move) {
-                foreach ($move->changes as $change) {
-                    if (
-                        $change->type === PositionChangeType::MOVE
-                        && $change->to !== null
-                    ) {
-                        $destinations[$change->to->notation()] = true;
-                    }
+                $change = $move->changes[0] ?? null;
+
+                if ($change?->type !== PositionChangeType::MOVE || $change->to === null) {
+                    continue;
                 }
+
+                $destinations[$change->to->notation()] = true;
             }
 
             $pieceCount = $this->countPieces($position, $color);
