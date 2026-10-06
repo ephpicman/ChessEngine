@@ -80,20 +80,23 @@ final readonly class PositionDescriptor
     }
 
     /**
-     * Returns the proportion of board squares occupied by pieces of a colour.
+     * Returns the proportion of the maximum possible number of pieces
+     * currently present for a colour.
      *
      * The metric is:
      *
-     *     occupied squares / 64
+     *     piece count / 16
      *
-     * Each occupied square contributes once regardless of piece type.
+     * A colour can have at most 16 pieces on the board: one king and fifteen
+     * non-king pieces. Promotion changes a pawn's type but does not increase
+     * the number of pieces, so promotion cannot raise this upper bound.
      *
-     * @param Color $color The colour whose occupied squares are measured.
-     * @return float The occupied-square score in the range [0, 1].
+     * @param Color $color The colour whose piece count is measured.
+     * @return float The piece-count score in the range [0, 1].
      */
-    public function getOccupiedSquareScore(Color $color): float
+    public function getPieceCountScore(Color $color): float
     {
-        return $this->values['occupied_square_score'][$color->value];
+        return $this->values['piece_count_score'][$color->value];
     }
 
     /**
@@ -131,7 +134,7 @@ final readonly class PositionDescriptor
     ): array {
         return [
             'material_score' => $this->calculateMaterialScores($position, $config),
-            'occupied_square_score' => $this->calculateOccupiedSquareScores($position),
+            'piece_count_score' => $this->calculatePieceCountScores($position),
             'legal_destination_score' => $this->calculateLegalDestinationScores(
                 $position,
                 $history,
@@ -142,7 +145,7 @@ final readonly class PositionDescriptor
     /**
      * Calculates the material score for both colours.
      *
-     * @param Position $position The position to inspect.
+     * @param Position $position The position to describe.
      * @param array<string, mixed> $config Calculation configuration.
      * @return array<int, float> Scores indexed by Color backing value.
      * @throws \InvalidArgumentException For invalid material configuration.
@@ -187,12 +190,16 @@ final readonly class PositionDescriptor
     }
 
     /**
-     * Calculates occupied-square scores for both colours.
+     * Calculates piece-count scores for both colours.
+     *
+     * The maximum of 16 is a structural chess constraint: each colour has
+     * one king and fifteen non-king pieces. Promotions replace pawns and do
+     * not create additional pieces.
      *
      * @param Position $position The position to inspect.
      * @return array<int, float> Scores indexed by Color backing value.
      */
-    private function calculateOccupiedSquareScores(Position $position): array
+    private function calculatePieceCountScores(Position $position): array
     {
         $counts = [
             Color::WHITE->value => 0,
@@ -208,8 +215,8 @@ final readonly class PositionDescriptor
         }
 
         return [
-            Color::WHITE->value => $counts[Color::WHITE->value] / 64.0,
-            Color::BLACK->value => $counts[Color::BLACK->value] / 64.0,
+            Color::WHITE->value => $counts[Color::WHITE->value] / 16.0,
+            Color::BLACK->value => $counts[Color::BLACK->value] / 16.0,
         ];
     }
 
