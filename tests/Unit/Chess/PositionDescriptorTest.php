@@ -162,7 +162,7 @@ final class PositionDescriptorTest extends TestCase
         $descriptor = new PositionDescriptor($position);
 
         self::assertEqualsWithDelta(
-            5 / 64,
+            10 / 64,
             $descriptor->getLegalDestinationScore(Color::WHITE),
             0.000000001,
         );
