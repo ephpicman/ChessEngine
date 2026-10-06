@@ -57,12 +57,12 @@ The denominator is therefore **not a fixed 64**. A colour with 16 pieces has at 
 
 The metric counts **destination squares, not moves**. If several legal moves end on the same square, that square contributes only once.
 
-For the standard initial position each colour has 20 unique legal destination squares and 16 own occupied squares:
+For the standard initial position the current legal move generator produces 16 unique legal destination squares for each colour, with 16 own occupied squares:
 
 ```text
-20 / (64 - 16)
-= 20 / 48
-= 0.416666...
+16 / (64 - 16)
+= 16 / 48
+= 0.333333...
 ```
 
 Legal destinations are generated through `LegalMoveGenerator`, so the numerator uses the same legality rules as the rest of the chess system.
