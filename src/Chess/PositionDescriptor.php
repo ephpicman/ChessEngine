@@ -7,24 +7,20 @@ namespace Ephpicman\ChessEngine\Chess;
 /**
  * Describes a chess position through deterministic numeric features.
  *
- * A descriptor is a snapshot of the supplied position. All configured
- * features are calculated during construction and the resulting values
- * are immutable afterwards.
+ * A descriptor is a snapshot of the supplied position and, where required,
+ * the supplied decision history. All configured features are calculated
+ * during construction and the resulting values are immutable afterwards.
  *
- * Descriptor calculations depend only on the supplied position and the
- * supplied configuration. No game history, previous moves, clocks, or
- * other historical state is considered.
+ * Position-only calculations depend only on the supplied position.
+ * Legal-destination calculations additionally depend on DecisionHistory
+ * because castling and en-passant legality cannot be determined from piece
+ * placement alone.
  *
  * Every descriptor value is represented as a float in the inclusive
  * range [0, 1].
  *
- * Configuration is optional and supports partial overrides. Missing
- * parameters use their documented defaults so that older consumers can
- * continue using newer versions of this class without knowing about
- * newly introduced parameters.
- *
- * @package   EphpicMan\ChessEngine
- * @author    EphpicMan <sinakuhestani@gmail.com>
+ * @package   Ephpicman\ChessEngine
+ * @author    Ephpicman <sinakuhestani@gmail.com>
  * @since     1.0.0
  * @copyright 2026 Sina Kuhestani
  */
@@ -40,64 +36,42 @@ final readonly class PositionDescriptor
     /**
      * Creates a position descriptor snapshot.
      *
-     * All descriptor calculations are performed during construction.
-     * The resulting values do not change if the supplied Position is
-     * subsequently modified.
-     *
-     * Configuration may contain only the parameters that need to be
-     * overridden. Missing parameters use their defaults.
-     *
-     * The current supported configuration is:
-     *
-     * - material_score.queen: value of each queen; default 9.
-     * - material_score.rook: value of each rook; default 5.
-     * - material_score.minor_piece: value of each bishop or knight;
-     *   default 3.
-     * - material_score.pawn: value of each pawn; default 1.
-     * - material_score.maximum: normalisation maximum; default 103,
-     *   calculated as (9 × 9) + (2 × 5) + (3 × 4).
-     *
-     * Unknown configuration keys are ignored. This allows new descriptor
-     * parameters to be introduced without requiring older consumers to
-     * provide them.
+     * The descriptor uses an empty history by default. Callers analysing a
+     * position from an actual game should supply that game's DecisionHistory
+     * so history-dependent legal moves such as castling and en-passant are
+     * represented correctly.
      *
      * @param Position $position The position to describe.
      * @param array<string, mixed> $config Calculation configuration.
-     *
-     * @throws \InvalidArgumentException If a configured material
-     *                                   parameter is invalid.
+     * @param DecisionHistory|null $history History required for exact legal
+     *                                    destination calculation.
      */
     public function __construct(
         Position $position,
         array $config = [],
+        ?DecisionHistory $history = null,
     ) {
-        $this->values = $this->calculateValues($position, $config);
+        $this->values = $this->calculateValues(
+            $position,
+            $config,
+            $history ?? new DecisionHistory(),
+        );
     }
 
     /**
      * Returns the material score for a colour.
      *
-     * The score is calculated as:
+     * The default calculation is:
      *
      *     (queens × 9) + (rooks × 5) +
      *     ((bishops + knights) × 3) + pawns
      *     ------------------------------------------------
      *                         103
      *
-     * The default denominator 103 is the defined normalisation maximum:
-     *
-     *     (9 × 9) + (2 × 5) + (3 × 4) = 103
-     *
-     * Only pieces currently placed on the board are counted. Pieces in
-     * the position's collection but not currently placed, such as
-     * promotion reserves, are not counted.
-     *
-     * The returned value is always within the inclusive range [0, 1].
-     * A score of 0 means that the colour has no counted material, while
-     * a score of 1 represents the configured normalisation maximum.
+     * Kings contribute zero and only pieces currently placed on the board
+     * are counted.
      *
      * @param Color $color The colour whose material is measured.
-     *
      * @return float The material score in the range [0, 1].
      */
     public function getMaterialScore(Color $color): float
@@ -106,35 +80,72 @@ final readonly class PositionDescriptor
     }
 
     /**
-     * Calculates all currently supported descriptor values.
+     * Returns the proportion of board squares occupied by pieces of a colour.
      *
-     * Each private calculation method is responsible for one logical
-     * descriptor and returns only data that belongs to the immutable
-     * descriptor snapshot.
+     * The metric is:
+     *
+     *     occupied squares / 64
+     *
+     * Each occupied square contributes once regardless of piece type.
+     *
+     * @param Color $color The colour whose occupied squares are measured.
+     * @return float The occupied-square score in the range [0, 1].
+     */
+    public function getOccupiedSquareScore(Color $color): float
+    {
+        return $this->values['occupied_square_score'][$color->value];
+    }
+
+    /**
+     * Returns the proportion of board squares that are legal destinations
+     * for at least one piece of a colour.
+     *
+     * The metric is:
+     *
+     *     unique legal destination squares / 64
+     *
+     * Multiple legal moves ending on the same square count only once.
+     * The supplied DecisionHistory is used during construction so that
+     * history-dependent legal moves are handled correctly.
+     *
+     * @param Color $color The colour whose legal destinations are measured.
+     * @return float The legal-destination score in the range [0, 1].
+     */
+    public function getLegalDestinationScore(Color $color): float
+    {
+        return $this->values['legal_destination_score'][$color->value];
+    }
+
+    /**
+     * Calculates all currently supported descriptor values.
      *
      * @param Position $position The position to describe.
      * @param array<string, mixed> $config Calculation configuration.
-     *
+     * @param DecisionHistory $history History used by legal move generation.
      * @return array<string, mixed> The calculated descriptor values.
      */
-    private function calculateValues(Position $position, array $config): array
-    {
+    private function calculateValues(
+        Position $position,
+        array $config,
+        DecisionHistory $history,
+    ): array {
         return [
             'material_score' => $this->calculateMaterialScores($position, $config),
+            'occupied_square_score' => $this->calculateOccupiedSquareScores($position),
+            'legal_destination_score' => $this->calculateLegalDestinationScores(
+                $position,
+                $history,
+            ),
         ];
     }
 
     /**
      * Calculates the material score for both colours.
      *
-     * The calculation counts only pieces that currently occupy a square
-     * on the supplied position. It deliberately does not inspect game
-     * history or the position's unused piece reserves.
-     *
      * @param Position $position The position to inspect.
      * @param array<string, mixed> $config Calculation configuration.
-     *
      * @return array<int, float> Scores indexed by Color backing value.
+     * @throws \InvalidArgumentException For invalid material configuration.
      */
     private function calculateMaterialScores(Position $position, array $config): array
     {
@@ -176,20 +187,72 @@ final readonly class PositionDescriptor
     }
 
     /**
+     * Calculates occupied-square scores for both colours.
+     *
+     * @param Position $position The position to inspect.
+     * @return array<int, float> Scores indexed by Color backing value.
+     */
+    private function calculateOccupiedSquareScores(Position $position): array
+    {
+        $counts = [
+            Color::WHITE->value => 0,
+            Color::BLACK->value => 0,
+        ];
+
+        for ($index = 0; $index < 64; $index++) {
+            $piece = $position->getPieceAt($position->getBoard()->getSquare($index));
+
+            if ($piece !== null) {
+                $counts[$piece->color->value]++;
+            }
+        }
+
+        return [
+            Color::WHITE->value => $counts[Color::WHITE->value] / 64.0,
+            Color::BLACK->value => $counts[Color::BLACK->value] / 64.0,
+        ];
+    }
+
+    /**
+     * Calculates unique legal destination-square scores for both colours.
+     *
+     * @param Position $position The position to inspect.
+     * @param DecisionHistory $history History required for exact legality.
+     * @return array<int, float> Scores indexed by Color backing value.
+     */
+    private function calculateLegalDestinationScores(
+        Position $position,
+        DecisionHistory $history,
+    ): array {
+        $generator = new LegalMoveGenerator();
+        $scores = [];
+
+        foreach ([Color::WHITE, Color::BLACK] as $color) {
+            $destinations = [];
+
+            foreach ($generator->generate($position, $color, $history) as $move) {
+                foreach ($move->changes as $change) {
+                    if (
+                        $change->type === PositionChangeType::MOVE
+                        && $change->to !== null
+                    ) {
+                        $destinations[$change->to->notation()] = true;
+                    }
+                }
+            }
+
+            $scores[$color->value] = count($destinations) / 64.0;
+        }
+
+        return $scores;
+    }
+
+    /**
      * Returns material-score parameters with defaults applied.
      *
-     * Partial configuration is supported. Each missing parameter falls
-     * back to the current default, which keeps older configurations valid
-     * as new parameters are added over time.
-     *
      * @param array<string, mixed> $config Calculation configuration.
-     *
      * @return array{queen: float, rook: float, minor_piece: float, pawn: float, maximum: float}
-     *     The effective material-score parameters.
-     *
-     * @throws \InvalidArgumentException If a supplied parameter is not a
-     *                                   finite non-negative numeric value,
-     *                                   or if the maximum is zero.
+     * @throws \InvalidArgumentException For invalid material configuration.
      */
     private function getMaterialScoreParameters(array $config): array
     {
@@ -243,14 +306,8 @@ final readonly class PositionDescriptor
     /**
      * Normalises a raw descriptor value to the required [0, 1] range.
      *
-     * A value above the configured maximum is capped at 1.0. This keeps
-     * the descriptor contract intact even when a custom configuration
-     * assigns values that allow a position to exceed its normalisation
-     * maximum.
-     *
      * @param float $value The raw value.
      * @param float $maximum The normalisation maximum.
-     *
      * @return float The normalised value in the range [0, 1].
      */
     private function normaliseScore(float $value, float $maximum): float
