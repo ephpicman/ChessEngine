@@ -330,7 +330,7 @@ final class PositionDescriptorTest extends TestCase
 
         $position->place($board->getSquareByNotation('e5'), $whitePawn);
         $position->place($board->getSquareByNotation('d5'), $blackPawn);
-        $position->place($board->getSquareByNotation('e1'), $whiteKing);
+        $position->place($board->getSquareByNotation('d1'), $whiteKing);
         $position->place($board->getSquareByNotation('e8'), $blackKing);
 
         $history = new DecisionHistory();
@@ -354,8 +354,8 @@ final class PositionDescriptorTest extends TestCase
             new PositionChange(
                 PositionChangeType::MOVE,
                 $whiteKing,
-                $board->getSquareByNotation('e2'),
                 $board->getSquareByNotation('e1'),
+                $board->getSquareByNotation('d1'),
             ),
         )));
 
