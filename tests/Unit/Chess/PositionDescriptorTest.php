@@ -196,7 +196,7 @@ final class PositionDescriptorTest extends TestCase
         self::assertEqualsWithDelta(2 / 16, (new PositionDescriptor($position))->getPieceCountScore(Color::WHITE), 0.000000001);
     }
 
-    public function testLegalDestinationScoreRespectsCastlingHistory(): void
+    public function testLegalDestinationScoreCountsUniqueDestinationsWhenCastlingRightsDiffer(): void
     {
         $position = InitialPosition::create();
 
@@ -248,9 +248,10 @@ final class PositionDescriptorTest extends TestCase
         $withoutHistory = new PositionDescriptor($position);
         $withHistory = new PositionDescriptor($position, [], $history);
 
-        self::assertLessThan(
+        self::assertEqualsWithDelta(
             $withoutHistory->getLegalDestinationScore(Color::WHITE),
             $withHistory->getLegalDestinationScore(Color::WHITE),
+            0.000000001,
         );
         self::assertSame(3, $history->count());
     }
