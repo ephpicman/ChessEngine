@@ -5,9 +5,15 @@ declare(strict_types=1);
 namespace Ephpicman\Chess\Tests\Unit\Chess;
 
 use Ephpicman\ChessEngine\Chess\Color;
+use Ephpicman\ChessEngine\Chess\Decision;
+use Ephpicman\ChessEngine\Chess\DecisionHistory;
+use Ephpicman\ChessEngine\Chess\DecisionType;
 use Ephpicman\ChessEngine\Chess\InitialPosition;
+use Ephpicman\ChessEngine\Chess\Move;
 use Ephpicman\ChessEngine\Chess\Piece;
 use Ephpicman\ChessEngine\Chess\PieceType;
+use Ephpicman\ChessEngine\Chess\PositionChange;
+use Ephpicman\ChessEngine\Chess\PositionChangeType;
 use Ephpicman\ChessEngine\Chess\PositionDescriptor;
 use PHPUnit\Framework\TestCase;
 
@@ -188,5 +194,253 @@ final class PositionDescriptorTest extends TestCase
         self::assertSame($initialLegalDestinationScore, $descriptor->getLegalDestinationScore(Color::WHITE));
         self::assertEqualsWithDelta(18 / 103, (new PositionDescriptor($position))->getMaterialScore(Color::WHITE), 0.000000001);
         self::assertEqualsWithDelta(2 / 16, (new PositionDescriptor($position))->getPieceCountScore(Color::WHITE), 0.000000001);
+    }
+
+    public function testLegalDestinationScoreCountsUniqueDestinationsWhenCastlingRightsDiffer(): void
+    {
+        $position = InitialPosition::create();
+
+        foreach ($position->getPieces()->all() as $piece) {
+            if ($position->hasPiece($piece)) {
+                $position->remove($position->getSquareOf($piece));
+            }
+        }
+
+        $board = $position->getBoard();
+        $king = new Piece('history-white-king', Color::WHITE, PieceType::KING);
+        $rook = new Piece('history-white-rook', Color::WHITE, PieceType::ROOK);
+        $blackKing = new Piece('history-black-king', Color::BLACK, PieceType::KING);
+
+        foreach ([$king, $rook, $blackKing] as $piece) {
+            $position->getPieces()->add($piece);
+        }
+
+        $position->place($board->getSquareByNotation('e1'), $king);
+        $position->place($board->getSquareByNotation('h1'), $rook);
+        $position->place($board->getSquareByNotation('e7'), $blackKing);
+
+        $history = new DecisionHistory();
+        $history->add(Color::WHITE, new Decision(DecisionType::MOVE, new Move(
+            new PositionChange(
+                PositionChangeType::MOVE,
+                $rook,
+                $board->getSquareByNotation('h1'),
+                $board->getSquareByNotation('g1'),
+            ),
+        )));
+        $history->add(Color::BLACK, new Decision(DecisionType::MOVE, new Move(
+            new PositionChange(
+                PositionChangeType::MOVE,
+                $blackKing,
+                $board->getSquareByNotation('e8'),
+                $board->getSquareByNotation('e7'),
+            ),
+        )));
+        $history->add(Color::WHITE, new Decision(DecisionType::MOVE, new Move(
+            new PositionChange(
+                PositionChangeType::MOVE,
+                $rook,
+                $board->getSquareByNotation('g1'),
+                $board->getSquareByNotation('h1'),
+            ),
+        )));
+
+        $withoutHistory = new PositionDescriptor($position);
+        $withHistory = new PositionDescriptor($position, [], $history);
+
+        self::assertEqualsWithDelta(
+            $withoutHistory->getLegalDestinationScore(Color::WHITE),
+            $withHistory->getLegalDestinationScore(Color::WHITE),
+            0.000000001,
+        );
+        self::assertSame(3, $history->count());
+    }
+
+    public function testLegalDestinationScoreRespectsImmediateEnPassantOpportunity(): void
+    {
+        $position = InitialPosition::create();
+
+        foreach ($position->getPieces()->all() as $piece) {
+            if ($position->hasPiece($piece)) {
+                $position->remove($position->getSquareOf($piece));
+            }
+        }
+
+        $board = $position->getBoard();
+        $whitePawn = new Piece('history-ep-white-pawn', Color::WHITE, PieceType::PAWN);
+        $blackPawn = new Piece('history-ep-black-pawn', Color::BLACK, PieceType::PAWN);
+        $whiteKing = new Piece('history-ep-white-king', Color::WHITE, PieceType::KING);
+        $blackKing = new Piece('history-ep-black-king', Color::BLACK, PieceType::KING);
+
+        foreach ([$whitePawn, $blackPawn, $whiteKing, $blackKing] as $piece) {
+            $position->getPieces()->add($piece);
+        }
+
+        $position->place($board->getSquareByNotation('e5'), $whitePawn);
+        $position->place($board->getSquareByNotation('d5'), $blackPawn);
+        $position->place($board->getSquareByNotation('e1'), $whiteKing);
+        $position->place($board->getSquareByNotation('e8'), $blackKing);
+
+        $history = new DecisionHistory();
+        $history->add(Color::WHITE, new Decision(DecisionType::MOVE, new Move(
+            new PositionChange(
+                PositionChangeType::MOVE,
+                $whiteKing,
+                $board->getSquareByNotation('e2'),
+                $board->getSquareByNotation('e1'),
+            ),
+        )));
+        $history->add(Color::BLACK, new Decision(DecisionType::MOVE, new Move(
+            new PositionChange(
+                PositionChangeType::MOVE,
+                $blackPawn,
+                $board->getSquareByNotation('d7'),
+                $board->getSquareByNotation('d5'),
+            ),
+        )));
+
+        $withoutHistory = new PositionDescriptor($position);
+        $withHistory = new PositionDescriptor($position, [], $history);
+
+        self::assertGreaterThan(
+            $withoutHistory->getLegalDestinationScore(Color::WHITE),
+            $withHistory->getLegalDestinationScore(Color::WHITE),
+        );
+        self::assertSame(2, $history->count());
+    }
+
+    public function testLegalDestinationScoreDoesNotAllowEnPassantAfterAnInterveningMove(): void
+    {
+        $position = InitialPosition::create();
+
+        foreach ($position->getPieces()->all() as $piece) {
+            if ($position->hasPiece($piece)) {
+                $position->remove($position->getSquareOf($piece));
+            }
+        }
+
+        $board = $position->getBoard();
+        $whitePawn = new Piece('history-expired-white-pawn', Color::WHITE, PieceType::PAWN);
+        $blackPawn = new Piece('history-expired-black-pawn', Color::BLACK, PieceType::PAWN);
+        $whiteKing = new Piece('history-expired-white-king', Color::WHITE, PieceType::KING);
+        $blackKing = new Piece('history-expired-black-king', Color::BLACK, PieceType::KING);
+
+        foreach ([$whitePawn, $blackPawn, $whiteKing, $blackKing] as $piece) {
+            $position->getPieces()->add($piece);
+        }
+
+        $position->place($board->getSquareByNotation('e5'), $whitePawn);
+        $position->place($board->getSquareByNotation('d5'), $blackPawn);
+        $position->place($board->getSquareByNotation('d1'), $whiteKing);
+        $position->place($board->getSquareByNotation('e8'), $blackKing);
+
+        $history = new DecisionHistory();
+        $history->add(Color::WHITE, new Decision(DecisionType::MOVE, new Move(
+            new PositionChange(
+                PositionChangeType::MOVE,
+                $whiteKing,
+                $board->getSquareByNotation('e2'),
+                $board->getSquareByNotation('e1'),
+            ),
+        )));
+        $history->add(Color::BLACK, new Decision(DecisionType::MOVE, new Move(
+            new PositionChange(
+                PositionChangeType::MOVE,
+                $blackPawn,
+                $board->getSquareByNotation('d7'),
+                $board->getSquareByNotation('d5'),
+            ),
+        )));
+        $history->add(Color::WHITE, new Decision(DecisionType::MOVE, new Move(
+            new PositionChange(
+                PositionChangeType::MOVE,
+                $whiteKing,
+                $board->getSquareByNotation('e1'),
+                $board->getSquareByNotation('d1'),
+            ),
+        )));
+
+        $withoutHistory = new PositionDescriptor($position);
+        $withExpiredOpportunity = new PositionDescriptor($position, [], $history);
+
+        self::assertEqualsWithDelta(
+            $withoutHistory->getLegalDestinationScore(Color::WHITE),
+            $withExpiredOpportunity->getLegalDestinationScore(Color::WHITE),
+            0.000000001,
+        );
+        self::assertSame(3, $history->count());
+    }
+
+    public function testRejectsInvalidMaterialScoreConfigurations(): void
+    {
+        $invalidConfigurations = [
+            ['material_score' => 'invalid'],
+            ['material_score' => ['queen' => -1]],
+            ['material_score' => ['queen' => NAN]],
+            ['material_score' => ['rook' => INF]],
+            ['material_score' => ['pawn' => '1']],
+            ['material_score' => ['maximum' => 0]],
+            ['material_score' => ['maximum' => -1]],
+            ['material_score' => ['maximum' => NAN]],
+        ];
+
+        foreach ($invalidConfigurations as $configuration) {
+            try {
+                new PositionDescriptor(InitialPosition::create(), $configuration);
+                self::fail('Expected an InvalidArgumentException for invalid material-score configuration.');
+            } catch (\InvalidArgumentException) {
+                self::assertTrue(true);
+            }
+        }
+    }
+
+    public function testAcceptsZeroValuedPieceWeightsAndClampsNormalisedScore(): void
+    {
+        $position = InitialPosition::create();
+
+        $descriptor = new PositionDescriptor($position, [
+            'material_score' => [
+                'queen' => 0,
+                'rook' => 0,
+                'minor_piece' => 0,
+                'pawn' => 0,
+                'maximum' => 1,
+            ],
+        ]);
+
+        self::assertSame(0.0, $descriptor->getMaterialScore(Color::WHITE));
+        self::assertSame(0.0, $descriptor->getMaterialScore(Color::BLACK));
+
+        $highMaterialDescriptor = new PositionDescriptor($position, [
+            'material_score' => [
+                'maximum' => 1,
+            ],
+        ]);
+
+        self::assertSame(1.0, $highMaterialDescriptor->getMaterialScore(Color::WHITE));
+        self::assertSame(1.0, $highMaterialDescriptor->getMaterialScore(Color::BLACK));
+    }
+
+    public function testDescriptorDoesNotMutateSuppliedHistory(): void
+    {
+        $position = InitialPosition::create();
+        $history = new DecisionHistory();
+        $piece = $position->getPieceAt($position->getBoard()->getSquareByNotation('e2'));
+        self::assertNotNull($piece);
+
+        $history->add(Color::WHITE, new Decision(DecisionType::MOVE, new Move(
+            new PositionChange(
+                PositionChangeType::MOVE,
+                $piece,
+                $position->getBoard()->getSquareByNotation('e2'),
+                $position->getBoard()->getSquareByNotation('e4'),
+            ),
+        )));
+
+        $before = $history->all();
+        new PositionDescriptor($position, [], $history);
+
+        self::assertSame(1, $history->count());
+        self::assertSame($before, $history->all());
     }
 }
