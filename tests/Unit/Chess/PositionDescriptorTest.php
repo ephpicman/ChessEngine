@@ -387,7 +387,7 @@ final class PositionDescriptorTest extends TestCase
             try {
                 new PositionDescriptor(InitialPosition::create(), $configuration);
                 self::fail('Expected an InvalidArgumentException for invalid material-score configuration.');
-            } catch (\\InvalidArgumentException) {
+            } catch (\InvalidArgumentException) {
                 self::assertTrue(true);
             }
         }
